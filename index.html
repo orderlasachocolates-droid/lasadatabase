@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LASA CHOCOLATES – Order Management Dashboard</title>
+    <meta name="description" content="Premium order management dashboard for LASA CHOCOLATES. Manage customer orders, track profit, and analyze product sales.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ==================== LOGIN SCREEN ==================== -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-bg-pattern"></div>
+        <div class="login-container">
+            <div class="login-logo">
+                <h1 class="login-title">LASA CHOCOLATES</h1>
+                <p class="login-subtitle">Order Management Dashboard</p>
+            </div>
+            <form id="loginForm" class="login-form" autocomplete="off">
+                <div class="input-group">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" id="loginPassword" placeholder="Enter access code" required>
+                </div>
+                <div id="loginError" class="login-error" style="display:none;">
+                    <i class="fas fa-exclamation-circle"></i> Incorrect password. Please try again.
+                </div>
+                <button type="submit" class="login-btn" id="loginBtn">
+                    <span>Access Dashboard</span>
+                </button>
+            </form>
+            <p class="login-footer">Secure Admin Panel</p>
+        </div>
+    </div>
+
+    <!-- ==================== MAIN APP ==================== -->
+    <div id="appContainer" class="app-container" style="display:none;">
+
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h2 class="sidebar-brand">LASA</h2>
+                <p class="sidebar-tagline">CHOCOLATES</p>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-link active" data-view="dashboard" id="navDashboard">
+                    <i class="fas fa-th-large"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-link" data-view="orders" id="navOrders">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>All Orders</span>
+                </a>
+                <a href="#" class="nav-link" data-view="analytics" id="navAnalytics">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Analytics</span>
+                </a>
+            </nav>
+            <div class="sidebar-contact">
+                <p class="contact-label">Contact</p>
+                <a href="mailto:order.lasachocolates@gmail.com" class="contact-btn email-btn" id="contactEmail">
+                    <i class="fas fa-envelope"></i>
+                    <span>Email Us</span>
+                </a>
+                <a href="https://www.instagram.com/lasa.chocolates?igsh=MW83cmNqMzl1YmUyeQ==" target="_blank" class="contact-btn insta-btn" id="contactInstagram">
+                    <i class="fab fa-instagram"></i>
+                    <span>Instagram</span>
+                </a>
+            </div>
+            <button class="logout-btn" id="logoutBtn">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </button>
+        </aside>
+
+        <!-- MOBILE HEADER -->
+        <div class="mobile-header" id="mobileHeader">
+            <button class="menu-toggle" id="menuToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h2 class="mobile-brand"><i class="fas fa-cookie-bite"></i> LASA CHOCOLATES</h2>
+        </div>
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content" id="mainContent">
+
+            <!-- ===== DASHBOARD VIEW ===== -->
+            <section id="viewDashboard" class="view active">
+                <div class="view-header">
+                    <div>
+                        <h1 class="view-title">Dashboard</h1>
+                        <p class="view-desc">Welcome back! Here's your overview.</p>
+                    </div>
+                    <button class="btn btn-primary" id="addOrderBtnDash">
+                        <i class="fas fa-plus"></i> New Order
+                    </button>
+                </div>
+
+                <div class="summary-cards">
+                    <div class="summary-card card-orders" id="cardTotalOrders">
+                        <div class="card-icon"><i class="fas fa-shopping-bag"></i></div>
+                        <div class="card-info">
+                            <p class="card-label">Total Orders</p>
+                            <h2 class="card-value" id="totalOrdersCount">0</h2>
+                        </div>
+                    </div>
+                    <div class="summary-card card-profit" id="cardTotalProfit">
+                        <div class="card-icon"><i class="fas fa-coins"></i></div>
+                        <div class="card-info">
+                            <p class="card-label">Total Profit</p>
+                            <h2 class="card-value" id="totalProfitValue">₹0</h2>
+                        </div>
+                        <div class="card-hint"><i class="fas fa-chart-pie"></i> Click for analytics</div>
+                    </div>
+                    <div class="summary-card card-items" id="cardTopItem">
+                        <div class="card-icon"><i class="fas fa-trophy"></i></div>
+                        <div class="card-info">
+                            <p class="card-label">Top Selling Item</p>
+                            <h2 class="card-value" id="topItemName">—</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-header">
+                    <h2 class="section-title">Recent Orders</h2>
+                    <a href="#" class="see-all-link" id="seeAllOrders">View All <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div class="table-wrapper glass-card">
+                    <table class="data-table" id="recentOrdersTable">
+                        <thead>
+                            <tr>
+                                <th>S.No</th>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Item</th>
+                                <th>Amount</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentOrdersBody"></tbody>
+                    </table>
+                    <div class="empty-state" id="recentEmptyState" style="display:none;">
+                        <i class="fas fa-inbox"></i>
+                        <p>No orders yet. Add your first order!</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== ORDERS VIEW ===== -->
+            <section id="viewOrders" class="view">
+                <div class="view-header">
+                    <div>
+                        <h1 class="view-title">All Orders</h1>
+                        <p class="view-desc">Manage and search all customer orders.</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-outline" id="exportPdfBtn">
+                            <i class="fas fa-file-pdf"></i> Download PDF
+                        </button>
+                        <button class="btn btn-primary" id="addOrderBtnOrders">
+                            <i class="fas fa-plus"></i> New Order
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filters-bar glass-card">
+                    <div class="filter-group search-group">
+                        <i class="fas fa-search filter-icon"></i>
+                        <input type="text" id="searchInput" placeholder="Search by name or order ID..." class="filter-input">
+                    </div>
+                    <div class="filter-group">
+                        <i class="fas fa-calendar filter-icon"></i>
+                        <input type="date" id="filterDateFrom" class="filter-input" title="From date">
+                    </div>
+                    <div class="filter-group">
+                        <i class="fas fa-calendar-check filter-icon"></i>
+                        <input type="date" id="filterDateTo" class="filter-input" title="To date">
+                    </div>
+                    <div class="filter-group">
+                        <i class="fas fa-filter filter-icon"></i>
+                        <select id="filterItem" class="filter-input">
+                            <option value="">All Items</option>
+                            <option>DARK PLAIN CHOCOLATES</option>
+                            <option>WHITE PLAIN CHOCOLATES</option>
+                            <option>MILK PLAIN CHOCOLATES</option>
+                            <option>DRYFRUIT MIXED</option>
+                            <option>KUNAFA</option>
+                            <option>CHERRY FLAVOUR</option>
+                            <option>ROSE FLAVOUR</option>
+                            <option>BROWNIE</option>
+                            <option>CUPCAKES</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-sm btn-outline" id="clearFiltersBtn">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                </div>
+
+                <div class="table-wrapper glass-card">
+                    <table class="data-table" id="allOrdersTable">
+                        <thead>
+                            <tr>
+                                <th>S.No</th>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Phone</th>
+                                <th>Item</th>
+                                <th>Amount (₹)</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allOrdersBody"></tbody>
+                    </table>
+                    <div class="empty-state" id="ordersEmptyState" style="display:none;">
+                        <i class="fas fa-inbox"></i>
+                        <p>No orders found matching your criteria.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== ANALYTICS VIEW ===== -->
+            <section id="viewAnalytics" class="view">
+                <div class="view-header">
+                    <div>
+                        <h1 class="view-title">Analytics</h1>
+                        <p class="view-desc">Sales breakdown and profit analysis.</p>
+                    </div>
+                </div>
+
+                <div class="analytics-grid">
+                    <div class="chart-container glass-card">
+                        <h3 class="chart-title"><i class="fas fa-chart-pie"></i> Income Distribution by Item</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="profitPieChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="profit-cards-container">
+                        <h3 class="chart-title"><i class="fas fa-layer-group"></i> Profit by Item</h3>
+                        <div class="profit-cards" id="profitCards"></div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ==================== ORDER MODAL ==================== -->
+    <div class="modal-overlay" id="orderModal">
+        <div class="modal glass-card">
+            <div class="modal-header">
+                <h2 id="modalTitle"><i class="fas fa-plus-circle"></i> New Order</h2>
+                <button class="modal-close" id="modalClose"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="orderForm" class="modal-form" autocomplete="off">
+                <input type="hidden" id="editOrderId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="orderIdInput"><i class="fas fa-hashtag"></i> Order ID</label>
+                        <input type="text" id="orderIdInput" placeholder="e.g. ORD-001" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="customerName"><i class="fas fa-user"></i> Customer Name</label>
+                        <input type="text" id="customerName" placeholder="Customer name" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="phoneNumber"><i class="fas fa-phone"></i> Phone <span class="optional">(optional)</span></label>
+                        <input type="text" id="phoneNumber" placeholder="Phone number">
+                    </div>
+                    <div class="form-group">
+                        <label for="orderDate"><i class="fas fa-calendar"></i> Date of Order</label>
+                        <input type="date" id="orderDate" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="itemOrdered"><i class="fas fa-box"></i> Item Ordered</label>
+                        <select id="itemOrdered" required>
+                            <option value="">Select item...</option>
+                            <option>DARK PLAIN CHOCOLATES</option>
+                            <option>WHITE PLAIN CHOCOLATES</option>
+                            <option>MILK PLAIN CHOCOLATES</option>
+                            <option>DRYFRUIT MIXED</option>
+                            <option>KUNAFA</option>
+                            <option>CHERRY FLAVOUR</option>
+                            <option>ROSE FLAVOUR</option>
+                            <option>BROWNIE</option>
+                            <option>CUPCAKES</option>
+                            <option value="__custom__">✏️ Custom Item...</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="customItemGroup" style="display:none;">
+                        <label for="customItem"><i class="fas fa-pencil-alt"></i> Custom Item Name</label>
+                        <input type="text" id="customItem" placeholder="Type custom item name">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="amountProfit"><i class="fas fa-rupee-sign"></i> Amount / Profit (₹)</label>
+                        <input type="number" id="amountProfit" placeholder="e.g. 500" min="0" required>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" id="modalCancelBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveOrderBtn">
+                        <i class="fas fa-save"></i> Save Order
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== DELETE CONFIRM MODAL ==================== -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal modal-sm glass-card">
+            <div class="modal-header delete-header">
+                <h2><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h2>
+            </div>
+            <p class="delete-msg">Are you sure you want to delete this order? This action cannot be undone.</p>
+            <div class="form-actions">
+                <button class="btn btn-outline" id="deleteCancelBtn">Cancel</button>
+                <button class="btn btn-danger" id="deleteConfirmBtn">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TOAST ==================== -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- ==================== SCRIPTS ==================== -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
