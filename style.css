@@ -402,6 +402,7 @@ input, select, textarea { font-family: inherit; }
 
 .email-btn:hover i { color: var(--accent-blue); }
 .insta-btn:hover i { color: #E1306C; }
+.upi-btn:hover i { color: #27ae60; }
 
 .logout-btn {
     display: flex; align-items: center; gap: 0.6rem;
