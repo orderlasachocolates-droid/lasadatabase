@@ -1,16 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LASA CHOCOLATES – Order Management Dashboard</title>
-    <meta name="description" content="Premium order management dashboard for LASA CHOCOLATES. Manage customer orders, track profit, and analyze product sales.">
+    <meta name="description"
+        content="Premium order management dashboard for LASA CHOCOLATES. Manage customer orders, track profit, and analyze product sales.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <!-- ==================== LOGIN SCREEN ==================== -->
@@ -31,9 +36,22 @@
                 </div>
                 <button type="submit" class="login-btn" id="loginBtn">
                     <span>Access Dashboard</span>
+                    <i class="fas fa-arrow-right"></i>
                 </button>
             </form>
             <p class="login-footer">Secure Admin Panel</p>
+        </div>
+    </div>
+
+    <!-- ==================== LOADING SCREEN ==================== -->
+    <div id="loadingScreen" class="loading-screen" style="display:none;">
+        <div class="loading-center">
+            <div class="loading-logo-icon"><i class="fas fa-cookie-bite"></i></div>
+            <h2 class="loading-brand">LASA CHOCOLATES</h2>
+            <p class="loading-tagline">Preparing your dashboard...</p>
+            <div class="loading-bar-track">
+                <div class="loading-bar-fill" id="loadingBarFill"></div>
+            </div>
         </div>
     </div>
 
@@ -43,6 +61,9 @@
         <!-- SIDEBAR -->
         <aside id="sidebar" class="sidebar">
             <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <i class="fas fa-cookie-bite"></i>
+                </div>
                 <h2 class="sidebar-brand">LASA</h2>
                 <p class="sidebar-tagline">CHOCOLATES</p>
             </div>
@@ -66,7 +87,8 @@
                     <i class="fas fa-envelope"></i>
                     <span>Email Us</span>
                 </a>
-                <a href="https://www.instagram.com/lasa.chocolates?igsh=MW83cmNqMzl1YmUyeQ==" target="_blank" class="contact-btn insta-btn" id="contactInstagram">
+                <a href="https://www.instagram.com/lasa.chocolates?igsh=MW83cmNqMzl1YmUyeQ==" target="_blank"
+                    class="contact-btn insta-btn" id="contactInstagram">
                     <i class="fab fa-instagram"></i>
                     <span>Instagram</span>
                 </a>
@@ -137,8 +159,9 @@
                                 <th>S.No</th>
                                 <th>Order ID</th>
                                 <th>Customer</th>
-                                <th>Item</th>
-                                <th>Amount</th>
+                                <th>Items</th>
+                                <th>Qty</th>
+                                <th>Total (Rs.)</th>
                                 <th>Date</th>
                                 <th>Actions</th>
                             </tr>
@@ -172,7 +195,8 @@
                 <div class="filters-bar glass-card">
                     <div class="filter-group search-group">
                         <i class="fas fa-search filter-icon"></i>
-                        <input type="text" id="searchInput" placeholder="Search by name or order ID..." class="filter-input">
+                        <input type="text" id="searchInput" placeholder="Search by name or order ID..."
+                            class="filter-input">
                     </div>
                     <div class="filter-group">
                         <i class="fas fa-calendar filter-icon"></i>
@@ -210,8 +234,10 @@
                                 <th>Order ID</th>
                                 <th>Customer</th>
                                 <th>Phone</th>
-                                <th>Item</th>
-                                <th>Amount (₹)</th>
+                                <th>Items</th>
+                                <th>Qty</th>
+                                <th>Unit Price</th>
+                                <th>Total (Rs.)</th>
                                 <th>Date</th>
                                 <th>Actions</th>
                             </tr>
@@ -234,6 +260,39 @@
                     </div>
                 </div>
 
+                <!-- KPI Cards Row -->
+                <div class="analytics-kpi-row">
+                    <div class="kpi-card kpi-revenue">
+                        <div class="kpi-icon"><i class="fas fa-rupee-sign"></i></div>
+                        <div class="kpi-info">
+                            <p class="kpi-label">Total Revenue</p>
+                            <h2 class="kpi-value" id="kpiTotalRevenue">₹0</h2>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-avg">
+                        <div class="kpi-icon"><i class="fas fa-calculator"></i></div>
+                        <div class="kpi-info">
+                            <p class="kpi-label">Avg Order Value</p>
+                            <h2 class="kpi-value" id="kpiAvgOrder">₹0</h2>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-orders">
+                        <div class="kpi-icon"><i class="fas fa-shopping-bag"></i></div>
+                        <div class="kpi-info">
+                            <p class="kpi-label">Total Orders</p>
+                            <h2 class="kpi-value" id="kpiOrderCount">0</h2>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-best">
+                        <div class="kpi-icon"><i class="fas fa-crown"></i></div>
+                        <div class="kpi-info">
+                            <p class="kpi-label">Best Month</p>
+                            <h2 class="kpi-value" id="kpiBestMonth">—</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
                 <div class="analytics-grid">
                     <div class="chart-container glass-card">
                         <h3 class="chart-title"><i class="fas fa-chart-pie"></i> Income Distribution by Item</h3>
@@ -241,10 +300,18 @@
                             <canvas id="profitPieChart"></canvas>
                         </div>
                     </div>
-                    <div class="profit-cards-container">
-                        <h3 class="chart-title"><i class="fas fa-layer-group"></i> Profit by Item</h3>
-                        <div class="profit-cards" id="profitCards"></div>
+                    <div class="chart-container glass-card">
+                        <h3 class="chart-title"><i class="fas fa-chart-bar"></i> Monthly Revenue Trend</h3>
+                        <div class="chart-wrapper chart-wrapper-bar">
+                            <canvas id="revenueBarChart"></canvas>
+                        </div>
                     </div>
+                </div>
+
+                <!-- Item Breakdown -->
+                <div class="profit-cards-container glass-card" style="margin-top:1.5rem;">
+                    <h3 class="chart-title"><i class="fas fa-layer-group"></i> Revenue by Item</h3>
+                    <div class="profit-cards" id="profitCards"></div>
                 </div>
             </section>
 
@@ -272,7 +339,8 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="phoneNumber"><i class="fas fa-phone"></i> Phone <span class="optional">(optional)</span></label>
+                        <label for="phoneNumber"><i class="fas fa-phone"></i> Phone <span
+                                class="optional">(optional)</span></label>
                         <input type="text" id="phoneNumber" placeholder="Phone number">
                     </div>
                     <div class="form-group">
@@ -280,34 +348,24 @@
                         <input type="date" id="orderDate" required>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="itemOrdered"><i class="fas fa-box"></i> Item Ordered</label>
-                        <select id="itemOrdered" required>
-                            <option value="">Select item...</option>
-                            <option>DARK PLAIN CHOCOLATES</option>
-                            <option>WHITE PLAIN CHOCOLATES</option>
-                            <option>MILK PLAIN CHOCOLATES</option>
-                            <option>DRYFRUIT MIXED</option>
-                            <option>KUNAFA</option>
-                            <option>CHERRY FLAVOUR</option>
-                            <option>ROSE FLAVOUR</option>
-                            <option>BROWNIE</option>
-                            <option>CUPCAKES</option>
-                            <option value="__custom__">✏️ Custom Item...</option>
-                        </select>
+
+                <!-- Multi-Item Section -->
+                <div class="items-section">
+                    <div class="items-section-header">
+                        <label><i class="fas fa-boxes"></i> Order Items</label>
+                        <button type="button" class="btn btn-sm btn-add-item" id="addItemRowBtn">
+                            <i class="fas fa-plus"></i> Add Item
+                        </button>
                     </div>
-                    <div class="form-group" id="customItemGroup" style="display:none;">
-                        <label for="customItem"><i class="fas fa-pencil-alt"></i> Custom Item Name</label>
-                        <input type="text" id="customItem" placeholder="Type custom item name">
+                    <div class="items-rows-container" id="itemsRowsContainer">
+                        <!-- Item rows will be dynamically added here -->
+                    </div>
+                    <div class="order-total-bar">
+                        <span class="total-label"><i class="fas fa-rupee-sign"></i> Order Total</span>
+                        <span class="total-value" id="orderTotalValue">₹0</span>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="amountProfit"><i class="fas fa-rupee-sign"></i> Amount / Profit (₹)</label>
-                        <input type="number" id="amountProfit" placeholder="e.g. 500" min="0" required>
-                    </div>
-                </div>
+
                 <div class="form-actions">
                     <button type="button" class="btn btn-outline" id="modalCancelBtn">Cancel</button>
                     <button type="submit" class="btn btn-primary" id="saveOrderBtn">
@@ -344,4 +402,5 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="app.js"></script>
 </body>
+
 </html>
