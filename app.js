@@ -321,6 +321,10 @@ function createOrderRow(order, serialNo, showPhone) {
                 <button onclick="downloadBill('${order.id}', true); closeBillMenu()">
                     <i class="fas fa-check-circle"></i> Post-Payment <span>(PAID)</span>
                 </button>
+                ${order.phone ? `
+                <button onclick="shareOnWhatsApp('${order.id}'); closeBillMenu()">
+                    <i class="fab fa-whatsapp"></i> Share <span>(WhatsApp)</span>
+                </button>` : ''}
             </div>
         </div>
         <button class="btn-icon delete" onclick="openDeleteModal('${order.id}')" title="Delete"><i class="fas fa-trash-alt"></i></button>
@@ -477,15 +481,26 @@ DOM.orderForm.addEventListener('submit', async (e) => {
     };
     const docId = DOM.editOrderId.value;
     try {
+        let finalDocId = docId;
         if (docId) {
             await ordersRef.doc(docId).update(orderData);
             showToast('Order updated successfully!', 'success');
         } else {
             orderData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            await ordersRef.add(orderData);
+            const newDoc = await ordersRef.add(orderData);
+            finalDocId = newDoc.id;
             showToast('Order added successfully!', 'success');
         }
         closeModal();
+
+        // Auto-send to WhatsApp if phone is provided
+        if (orderData.phone) {
+            setTimeout(() => {
+                if (confirm('Order saved. Share invoice on WhatsApp?')) {
+                    shareOnWhatsApp(finalDocId);
+                }
+            }, 500);
+        }
     } catch (err) {
         console.error(err);
         showToast('Error saving order. Please try again.', 'error');
@@ -669,16 +684,50 @@ function downloadBill(docId, isPaid) {
             margin: 0,
             filename: 'LASA_Invoice_' + (order.orderId || 'bill') + '.pdf',
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, allowTaint: true, imageTimeout: 0, logging: false },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: 'avoid-all' }
         }).from(container.firstElementChild).save().then(function() {
             document.body.removeChild(container);
             showToast('Invoice ' + (order.orderId || '') + ' downloaded!', 'success');
         }).catch(function(err) {
             console.error(err);
-            document.body.removeChild(container);
+            if (container.parentNode) document.body.removeChild(container);
             showToast('Error generating invoice.', 'error');
         });
+}
+
+// ============================================================
+// SHARE ON WHATSAPP
+// ============================================================
+function shareOnWhatsApp(docId) {
+    const order = allOrders.find(o => o.id === docId);
+    if (!order || !order.phone) {
+        showToast('No phone number available for this order.', 'error');
+        return;
+    }
+    
+    const items = normalizeItems(order);
+    const total = calcTotal(items);
+    const orderId = order.orderId || '-';
+    
+    let message = `*LASA CHOCOLATES - Invoice*\n\n`;
+    message += `*Order ID:* ${orderId}\n`;
+    message += `*Customer:* ${order.customerName || '-'}\n`;
+    message += `*Date:* ${formatDate(order.orderDate || order.date)}\n`;
+    message += `*Total Amount:* Rs. ${total.toLocaleString('en-IN')}\n\n`;
+    message += `*Items:*\n`;
+    items.forEach(it => {
+        const lineTotal = (parseFloat(it.qty) || 1) * (parseFloat(it.unitPrice) || 0);
+        message += `- ${it.name} (x${it.qty || 1}): Rs. ${lineTotal.toLocaleString('en-IN')}\n`;
+    });
+    message += `\nThank you for choosing *LASA CHOCOLATES*!`;
+    
+    const cleanPhone = order.phone.replace(/\D/g, '');
+    const finalPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+    
+    const url = `https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
 } // end downloadBill
 
 
@@ -897,3 +946,4 @@ function showToast(message, type='info') {
 DOM.orderModal.addEventListener('click', (e) => { if(e.target===DOM.orderModal) closeModal(); });
 DOM.deleteModal.addEventListener('click', (e) => { if(e.target===DOM.deleteModal){ DOM.deleteModal.classList.remove('show'); deleteDocId=null; } });
 document.addEventListener('keydown', (e) => { if(e.key==='Escape'){ closeModal(); DOM.deleteModal.classList.remove('show'); deleteDocId=null; } });
+
