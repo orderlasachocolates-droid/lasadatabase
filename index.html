@@ -370,6 +370,13 @@
                     </div>
                 </div>
 
+                <div class="form-row">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label for="orderDescription"><i class="fas fa-comment-alt"></i> Order Description / Special Instructions</label>
+                        <textarea id="orderDescription" rows="2" placeholder="Add any details or special requests here..."></textarea>
+                    </div>
+                </div>
+
                 <div class="form-actions">
                     <button type="button" class="btn btn-outline" id="modalCancelBtn">Cancel</button>
                     <button type="submit" class="btn btn-primary" id="saveOrderBtn">
@@ -379,6 +386,54 @@
             </form>
         </div>
     </div>
+
+    <!-- ==================== BILL DOWNLOAD MODAL ==================== -->
+    <div class="modal-overlay" id="billModal">
+        <div class="modal modal-sm glass-card">
+            <div class="modal-header">
+                <h2><i class="fas fa-file-invoice"></i> Download Invoice</h2>
+                <button class="modal-close" onclick="closeBillModal()">&times;</button>
+            </div>
+            <div class="bill-options-list">
+                <p class="bill-modal-desc">Choose an option for the invoice:</p>
+                
+                <input type="hidden" id="currentBillDocId">
+
+                <button class="bill-opt-btn" id="billBtnPre" onclick="handleBillAction('pre')">
+                    <div class="bill-opt-icon qr"><i class="fas fa-qrcode"></i></div>
+                    <div class="bill-opt-info">
+                        <strong>Pre-Payment Invoice</strong>
+                        <span>Includes UPI QR Code for payment</span>
+                    </div>
+                </button>
+
+                <button class="bill-opt-btn" id="billBtnPost" onclick="handleBillAction('post')">
+                    <div class="bill-opt-icon check"><i class="fas fa-check-circle"></i></div>
+                    <div class="bill-opt-info">
+                        <strong>Post-Payment Invoice</strong>
+                        <span>Marked as PAID (No QR Code)</span>
+                    </div>
+                </button>
+
+                <button class="bill-opt-btn whatsapp-only" id="waBtnPre" onclick="handleBillAction('wa-pre')">
+                    <div class="bill-opt-icon whatsapp"><i class="fab fa-whatsapp"></i></div>
+                    <div class="bill-opt-info">
+                        <strong>Share Invoice (Pre-Payment)</strong>
+                        <span>Send unpaid order details to customer</span>
+                    </div>
+                </button>
+
+                <button class="bill-opt-btn whatsapp-only" id="waBtnPost" onclick="handleBillAction('wa-post')">
+                    <div class="bill-opt-icon whatsapp"><i class="fas fa-check-double"></i></div>
+                    <div class="bill-opt-info">
+                        <strong>Share Receipt (Post-Payment)</strong>
+                        <span>Send payment confirmation to customer</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- ==================== DELETE CONFIRM MODAL ==================== -->
     <div class="modal-overlay" id="deleteModal">
