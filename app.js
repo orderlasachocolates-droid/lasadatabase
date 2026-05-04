@@ -61,12 +61,14 @@ const DOM = {
     phoneNumber: $('phoneNumber'), orderDate: $('orderDate'),
     modalClose: $('modalClose'), modalCancelBtn: $('modalCancelBtn'),
     saveOrderBtn: $('saveOrderBtn'),
+    orderDescription: $('orderDescription'),
     itemsRowsContainer: $('itemsRowsContainer'),
     addItemRowBtn: $('addItemRowBtn'), orderTotalValue: $('orderTotalValue'),
     deleteModal: $('deleteModal'), deleteCancelBtn: $('deleteCancelBtn'),
     deleteConfirmBtn: $('deleteConfirmBtn'),
     profitPieChart: $('profitPieChart'), profitCards: $('profitCards'),
     toastContainer: $('toastContainer'),
+    billModal: $('billModal'),
 };
 
 //  Helpers 
@@ -312,21 +314,7 @@ function createOrderRow(order, serialNo, showPhone) {
     cActions.className = 'actions-cell';
     cActions.innerHTML = `
         <button class="btn-icon" onclick="openEditModal('${order.id}')" title="Edit"><i class="fas fa-edit"></i></button>
-        <div class="bill-dropdown-wrap">
-            <button class="btn-icon bill" onclick="toggleBillMenu(this)" title="Download Bill"><i class="fas fa-file-invoice"></i></button>
-            <div class="bill-dropdown-menu">
-                <button onclick="downloadBill('${order.id}', false); closeBillMenu()">
-                    <i class="fas fa-qrcode"></i> Pre-Payment <span>(with QR)</span>
-                </button>
-                <button onclick="downloadBill('${order.id}', true); closeBillMenu()">
-                    <i class="fas fa-check-circle"></i> Post-Payment <span>(PAID)</span>
-                </button>
-                ${order.phone ? `
-                <button onclick="shareOnWhatsApp('${order.id}'); closeBillMenu()">
-                    <i class="fab fa-whatsapp"></i> Share <span>(WhatsApp)</span>
-                </button>` : ''}
-            </div>
-        </div>
+        <button class="btn-icon bill" onclick="openBillModal('${order.id}')" title="Download Bill"><i class="fas fa-file-invoice"></i></button>
         <button class="btn-icon delete" onclick="openDeleteModal('${order.id}')" title="Delete"><i class="fas fa-trash-alt"></i></button>
     `;
     
@@ -433,6 +421,7 @@ function openAddModal() {
     DOM.modalTitle.innerHTML = '<i class="fas fa-plus-circle"></i> New Order';
     DOM.saveOrderBtn.innerHTML = '<i class="fas fa-save"></i> Save Order';
     DOM.orderDate.value = new Date().toISOString().split('T')[0];
+    DOM.orderDescription.value = '';
     DOM.orderModal.classList.add('show');
 }
 
@@ -444,6 +433,7 @@ function openEditModal(docId) {
     DOM.customerName.value = order.customerName || '';
     DOM.phoneNumber.value = order.phone || '';
     DOM.orderDate.value = order.orderDate || order.date || '';
+    DOM.orderDescription.value = order.description || '';
     DOM.itemsRowsContainer.innerHTML = '';
     const items = normalizeItems(order);
     items.forEach(it => addItemRow(it));
@@ -474,6 +464,7 @@ DOM.orderForm.addEventListener('submit', async (e) => {
         phone: DOM.phoneNumber.value.trim(),
         orderDate: DOM.orderDate.value,
         items: items,
+        description: DOM.orderDescription.value.trim(),
         totalAmount: totalAmount,
         amount: totalAmount, // backward compat field
         item: items.map(i=>i.name).join(', '), // backward compat
@@ -509,24 +500,50 @@ DOM.orderForm.addEventListener('submit', async (e) => {
 
 
 // ============================================================
-// BILL DROPDOWN MENU
+// BILL OPTIONS MODAL
 // ============================================================
-function toggleBillMenu(btn) {
-    const menu = btn.nextElementSibling;
-    const isOpen = menu.classList.contains('open');
-    // Close all open menus first
-    document.querySelectorAll('.bill-dropdown-menu.open').forEach(m => m.classList.remove('open'));
-    if (!isOpen) {
-        menu.classList.add('open');
-        setTimeout(() => document.addEventListener('click', closeBillMenuOutside), 0);
+// ============================================================
+// BILL OPTIONS MODAL
+// ============================================================
+function openBillModal(docId) {
+    const order = allOrders.find(o => o.id === docId);
+    if (!order) return;
+    
+    document.getElementById('currentBillDocId').value = docId;
+    
+    // Hide WhatsApp if no phone
+    document.querySelectorAll('.whatsapp-only').forEach(btn => {
+        btn.style.display = order.phone ? 'flex' : 'none';
+    });
+    
+    DOM.billModal.classList.add('show');
+}
+
+function closeBillModal() {
+    DOM.billModal.classList.remove('show');
+}
+
+function handleBillAction(action) {
+    const docId = document.getElementById('currentBillDocId').value;
+    if (!docId) return;
+
+    if (action === 'pre') {
+        downloadBill(docId, false);
+    } else if (action === 'post') {
+        downloadBill(docId, true);
+    } else if (action === 'wa-pre') {
+        shareOnWhatsApp(docId, false);
+    } else if (action === 'wa-post') {
+        shareOnWhatsApp(docId, true);
     }
+    closeBillModal();
 }
-function closeBillMenu() {
-    document.querySelectorAll('.bill-dropdown-menu.open').forEach(m => m.classList.remove('open'));
-    document.removeEventListener('click', closeBillMenuOutside);
-}
-function closeBillMenuOutside(e) {
-    if (!e.target.closest('.bill-dropdown-wrap')) closeBillMenu();
+
+// Close on overlay click
+if (DOM.billModal) {
+    DOM.billModal.addEventListener('click', (e) => {
+        if (e.target === DOM.billModal) closeBillModal();
+    });
 }
 // ============================================================
 // DOWNLOAD BILL — Premium Clean Invoice
@@ -637,8 +654,9 @@ function downloadBill(docId, isPaid) {
         h += '</div>';
         h += '<div style="padding:16px 40px 0;display:table;width:100%;box-sizing:border-box;">';
         h += '<div style="display:table-cell;width:55%;vertical-align:top;">';
-        h += '<div style="font-size:9px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;">Notes</div>';
-        h += '<div style="font-size:11px;color:#7A6B5D;line-height:1.6;">Thank you for choosing LASA CHOCOLATES.<br>Payment is due upon receipt.</div>';
+        h += '<div style="font-size:9px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;">Notes / Description</div>';
+        var noteText = order.description ? escapeHtml(order.description).replace(/\n/g, '<br>') : 'Thank you for choosing LASA CHOCOLATES.';
+        h += '<div style="font-size:11px;color:#7A6B5D;line-height:1.6;">' + noteText + '</div>';
         h += '</div>';
         h += '<div style="display:table-cell;vertical-align:top;">';
         h += '<table style="width:100%;border-collapse:collapse;">';
@@ -700,7 +718,7 @@ function downloadBill(docId, isPaid) {
 // ============================================================
 // SHARE ON WHATSAPP
 // ============================================================
-function shareOnWhatsApp(docId) {
+function shareOnWhatsApp(docId, isPaid) {
     const order = allOrders.find(o => o.id === docId);
     if (!order || !order.phone) {
         showToast('No phone number available for this order.', 'error');
@@ -711,24 +729,45 @@ function shareOnWhatsApp(docId) {
     const total = calcTotal(items);
     const orderId = order.orderId || '-';
     
-    let message = `*LASA CHOCOLATES - Invoice*\n\n`;
-    message += `*Order ID:* ${orderId}\n`;
+    let message = `----------------------------------\n`;
+    message += isPaid ? `*LASA CHOCOLATES - PAYMENT RECEIPT* ✅\n` : `*LASA CHOCOLATES - ORDER INVOICE* 🍫\n`;
+    message += `----------------------------------\n\n`;
+    
+    message += `*Order ID:* #${orderId}\n`;
     message += `*Customer:* ${order.customerName || '-'}\n`;
     message += `*Date:* ${formatDate(order.orderDate || order.date)}\n`;
-    message += `*Total Amount:* Rs. ${total.toLocaleString('en-IN')}\n\n`;
-    message += `*Items:*\n`;
+    message += `*Status:* ${isPaid ? '✅ PAID' : '⏳ Awaiting Payment'}\n\n`;
+    
+    message += `*ORDER DETAILS:*\n`;
     items.forEach(it => {
         const lineTotal = (parseFloat(it.qty) || 1) * (parseFloat(it.unitPrice) || 0);
-        message += `- ${it.name} (x${it.qty || 1}): Rs. ${lineTotal.toLocaleString('en-IN')}\n`;
+        message += `• ${it.name}\n   ${it.qty || 1} x ₹${(parseFloat(it.unitPrice) || 0).toLocaleString('en-IN')} = *₹${lineTotal.toLocaleString('en-IN')}*\n`;
     });
-    message += `\nThank you for choosing *LASA CHOCOLATES*!`;
+    
+    message += `\n----------------------------------\n`;
+    message += `*GRAND TOTAL: ₹${total.toLocaleString('en-IN')}*\n`;
+    message += `----------------------------------\n`;
+    
+    if (order.description) {
+        message += `\n*Note:* ${order.description}\n`;
+    }
+    
+    if (!isPaid) {
+        message += `\n*PAYMENT LINK / DETAILS:*\n`;
+        message += `UPI ID: 9035653901@airtel\n`;
+        message += `Please share the payment screenshot here. 🙏`;
+    } else {
+        message += `\n*Thank you!* We have received your payment. Your order is now being processed. 📦`;
+    }
+    
+    message += `\n\n_Generated by LASA Dashboard_`;
     
     const cleanPhone = order.phone.replace(/\D/g, '');
     const finalPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
     
     const url = `https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
-} // end downloadBill
+}
 
 
 // ============================================================
@@ -946,4 +985,3 @@ function showToast(message, type='info') {
 DOM.orderModal.addEventListener('click', (e) => { if(e.target===DOM.orderModal) closeModal(); });
 DOM.deleteModal.addEventListener('click', (e) => { if(e.target===DOM.deleteModal){ DOM.deleteModal.classList.remove('show'); deleteDocId=null; } });
 document.addEventListener('keydown', (e) => { if(e.key==='Escape'){ closeModal(); DOM.deleteModal.classList.remove('show'); deleteDocId=null; } });
-
