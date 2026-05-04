@@ -730,7 +730,7 @@ function shareOnWhatsApp(docId, isPaid) {
     const orderId = order.orderId || '-';
     
     let message = `----------------------------------\n`;
-    message += isPaid ? `*LASA CHOCOLATES - PAYMENT RECEIPT* ✅\n` : `*LASA CHOCOLATES - ORDER INVOICE* 🍫\n`;
+    message += isPaid ? `*LASA CHOCOLATES - PAYMENT RECEIPT* \n` : `*LASA CHOCOLATES - ORDER INVOICE* \n`;
     message += `----------------------------------\n\n`;
     
     message += `*Order ID:* #${orderId}\n`;
@@ -755,7 +755,6 @@ function shareOnWhatsApp(docId, isPaid) {
     if (!isPaid) {
         message += `\n*PAYMENT LINK / DETAILS:*\n`;
         message += `UPI ID: 9035653901@airtel\n`;
-        message += `Please share the payment screenshot here. 🙏`;
     } else {
         message += `\n*Thank you!* We have received your payment. Your order is now being processed. 📦`;
     }
