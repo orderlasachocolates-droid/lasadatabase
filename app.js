@@ -22,18 +22,65 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const ordersRef = db.collection("orders");
+const customersRef = db.collection("customers");
+const blogsRef = db.collection("blogs");
+
+// --- Brand Assets ---
+const BRAND_LOGO_URL = "https://res.cloudinary.com/dtz0urit6/image/upload/q_auto:best,f_png/cloudinary-tools-uploads/l9vifhxn2hyfmwrttt8o";
+const UPI_QR_URL = "https://res.cloudinary.com/dtz0urit6/image/upload/q_auto:best,f_png/cloudinary-tools-uploads/ipfgx8i5wsilyy9prwc0";
+
+// --- EmailJS Configuration ---
+const EMAILJS_SERVICE_ID = "service_u7d509n";
+const EMAILJS_PUBLIC_KEY = "x02sUDY_t6v1002Wr";
+const EMAILJS_TEMPLATE_ID = "template_pdwwt4j"; // EmailJS Template ID
+const SENDER_EMAIL = "order.lasachocolates@gmail.com";
+
+// --- WhatsApp Configuration ---
+const BUSINESS_WHATSAPP_NUMBER = "+91 9035653901";
+const WHATSAPP_WELCOME_TEMPLATE = `Welcome to lasa Chocolates! 🍫
+
+We're delighted to welcome you to the lasa Chocolates family.
+
+At lasa Chocolates, we believe every occasion deserves something delicious. From rich milk and dark chocolates to our handcrafted dry-fruit, caramel, rose, cherry and Kunafa creations, every piece is made with love and care.
+
+Whether you're treating yourself, surprising someone special, or celebrating a memorable moment, we're here to make it a little sweeter.
+
+Made With Love ❤️
+Handcrafted chocolates made specially to make your moments sweeter.
+
+Explore lasa Chocolates:
+https://forms.gle/PgXyBaMBSmyJb9pS8
+
+Need Help?
+Email: order.lasachocolates@gmail.com
+WhatsApp: +91 9035653901
+Instagram: @lasa.chocolates
+https://instagram.com/lasa.chocolates`;
+
+if (window.emailjs) {
+    try {
+        emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+    } catch (err) {
+        console.warn("EmailJS init warning:", err);
+    }
+}
 
 //  Item Options 
 const ITEM_OPTIONS = [
-    'DARK PLAIN CHOCOLATES','WHITE PLAIN CHOCOLATES','MILK PLAIN CHOCOLATES',
-    'DRYFRUIT MIXED','KUNAFA','CHERRY FLAVOUR','ROSE FLAVOUR','BROWNIE','CUPCAKES'
+    'DARK PLAIN CHOCOLATES', 'WHITE PLAIN CHOCOLATES', 'MILK PLAIN CHOCOLATES',
+    'DRYFRUIT MIXED', 'KUNAFA', 'CHERRY FLAVOUR', 'ROSE FLAVOUR', 'BROWNIE', 'CUPCAKES'
 ];
 
 //  State 
 let allOrders = [];
+let dbCustomers = [];
+let allCustomers = [];
+let allBlogs = [];
 let pieChart = null;
 let deleteDocId = null;
-
+let deleteCustomerId = null;
+let deleteBlogId = null;
+let blogUploadedImages = []; // base64 images for current blog post
 
 //  DOM Refs 
 const $ = (id) => document.getElementById(id);
@@ -58,7 +105,10 @@ const DOM = {
     orderModal: $('orderModal'), modalTitle: $('modalTitle'),
     orderForm: $('orderForm'), editOrderId: $('editOrderId'),
     orderIdInput: $('orderIdInput'), customerName: $('customerName'),
-    phoneNumber: $('phoneNumber'), orderDate: $('orderDate'),
+    phoneNumber: $('phoneNumber'), orderCustomerEmail: $('orderCustomerEmail'),
+    orderAutoSyncCustomer: $('orderAutoSyncCustomer'),
+    customerNameSuggestions: $('customerNameSuggestions'),
+    orderDate: $('orderDate'),
     modalClose: $('modalClose'), modalCancelBtn: $('modalCancelBtn'),
     saveOrderBtn: $('saveOrderBtn'),
     orderDescription: $('orderDescription'),
@@ -69,6 +119,78 @@ const DOM = {
     profitPieChart: $('profitPieChart'), profitCards: $('profitCards'),
     toastContainer: $('toastContainer'),
     billModal: $('billModal'),
+    contactUpi: $('contactUpi'),
+    upiModal: $('upiModal'),
+    upiModalClose: $('upiModalClose'),
+    upiModalQrImg: $('upiModalQrImg'),
+    copyUpiBtn: $('copyUpiBtn'),
+
+    // --- Customer Registry DOM Elements ---
+    addCustomerBtn: $('addCustomerBtn'),
+    customerSearchInput: $('customerSearchInput'),
+    clearCustomerFiltersBtn: $('clearCustomerFiltersBtn'),
+    customersTableBody: $('customersTableBody'),
+    customersEmptyState: $('customersEmptyState'),
+    kpiTotalCustomers: $('kpiTotalCustomers'),
+    kpiPhoneCustomers: $('kpiPhoneCustomers'),
+    kpiEmailCustomers: $('kpiEmailCustomers'),
+    customerModal: $('customerModal'),
+    customerModalTitle: $('customerModalTitle'),
+    customerForm: $('customerForm'),
+    editCustomerId: $('editCustomerId'),
+    custName: $('custName'),
+    custPhone: $('custPhone'),
+    custEmail: $('custEmail'),
+    custAddress: $('custAddress'),
+    custNotes: $('custNotes'),
+    sendWelcomeEmailCheck: $('sendWelcomeEmailCheck'),
+    sendWelcomeWhatsAppCheck: $('sendWelcomeWhatsAppCheck'),
+    customerModalClose: $('customerModalClose'),
+    customerCancelBtn: $('customerCancelBtn'),
+    saveCustomerBtn: $('saveCustomerBtn'),
+    deleteCustomerModal: $('deleteCustomerModal'),
+    deleteCustCancelBtn: $('deleteCustCancelBtn'),
+    deleteCustConfirmBtn: $('deleteCustConfirmBtn'),
+
+    // --- Blog DOM Elements ---
+    createBlogBtn: $('createBlogBtn'),
+    blogSearchInput: $('blogSearchInput'),
+    blogTagFilter: $('blogTagFilter'),
+    clearBlogFiltersBtn: $('clearBlogFiltersBtn'),
+    blogGrid: $('blogGrid'),
+    blogEmptyState: $('blogEmptyState'),
+    blogModal: $('blogModal'),
+    blogModalTitle: $('blogModalTitle'),
+    blogForm: $('blogForm'),
+    editBlogId: $('editBlogId'),
+    blogTitle: $('blogTitle'),
+    blogTag: $('blogTag'),
+    blogImageUrl: $('blogImageUrl'),
+    blogDropzone: $('blogDropzone'),
+    blogImageFiles: $('blogImageFiles'),
+    blogImagePreviews: $('blogImagePreviews'),
+    blogContent: $('blogContent'),
+    blogModalClose: $('blogModalClose'),
+    blogCancelBtn: $('blogCancelBtn'),
+    saveBlogBtn: $('saveBlogBtn'),
+    deleteBlogModal: $('deleteBlogModal'),
+    deleteBlogCancelBtn: $('deleteBlogCancelBtn'),
+    deleteBlogConfirmBtn: $('deleteBlogConfirmBtn'),
+
+    // --- Blog Share DOM Elements ---
+    blogShareModal: $('blogShareModal'),
+    shareModalClose: $('shareModalClose'),
+    currentShareBlogId: $('currentShareBlogId'),
+    shareBlogPreview: $('shareBlogPreview'),
+    selectAllShareCust: $('selectAllShareCust'),
+    shareTotalCount: $('shareTotalCount'),
+    shareCustomerSearch: $('shareCustomerSearch'),
+    shareCustomersList: $('shareCustomersList'),
+    selectedCustCount: $('selectedCustCount'),
+    btnShareWhatsApp: $('btnShareWhatsApp'),
+    btnShareEmailJS: $('btnShareEmailJS'),
+    emailSendingProgress: $('emailSendingProgress'),
+    emailProgressText: $('emailProgressText'),
 };
 
 //  Helpers 
@@ -77,19 +199,37 @@ function normalizeItems(order) {
     return [{ name: order.item || 'Unknown', qty: 1, unitPrice: parseFloat(order.amount) || 0 }];
 }
 function calcTotal(items) {
-    return items.reduce((s, it) => s + ((parseFloat(it.qty)||0) * (parseFloat(it.unitPrice)||0)), 0);
+    return items.reduce((s, it) => s + ((parseFloat(it.qty) || 0) * (parseFloat(it.unitPrice) || 0)), 0);
 }
+function getTimestampMillis(dateVal) {
+    if (!dateVal) return 0;
+    if (dateVal.toDate && typeof dateVal.toDate === 'function') {
+        return dateVal.toDate().getTime();
+    }
+    if (dateVal.seconds) {
+        return dateVal.seconds * 1000;
+    }
+    if (typeof dateVal === 'string') {
+        const d = new Date(dateVal.includes('T') ? dateVal : dateVal + 'T00:00:00');
+        return isNaN(d.getTime()) ? 0 : d.getTime();
+    }
+    const d = new Date(dateVal);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+}
+
 function formatDate(dateVal) {
     if (!dateVal) return '-';
     let d;
     if (typeof dateVal === 'string') {
         d = new Date(dateVal.includes('T') ? dateVal : dateVal + 'T00:00:00');
+    } else if (dateVal.toDate && typeof dateVal.toDate === 'function') {
+        d = dateVal.toDate();
     } else if (dateVal.seconds) {
         d = new Date(dateVal.seconds * 1000);
     } else {
         d = new Date(dateVal);
     }
-    if (isNaN(d.getTime())) return dateVal;
+    if (isNaN(d.getTime())) return typeof dateVal === 'string' ? dateVal : '-';
     return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 function escapeHtml(str) {
@@ -116,7 +256,7 @@ DOM.loginForm.addEventListener('submit', (e) => {
         let step = 0;
         const timer = setInterval(() => {
             step++;
-            const pct = Math.min(100, Math.round((1 - Math.pow(1 - step/STEPS, 2.5)) * 100));
+            const pct = Math.min(100, Math.round((1 - Math.pow(1 - step / STEPS, 2.5)) * 100));
             barFill.style.width = pct + '%';
             if (step >= STEPS) {
                 clearInterval(timer);
@@ -155,6 +295,8 @@ function switchView(viewName) {
     DOM.sidebar.classList.remove('open');
     DOM.sidebarOverlay.classList.remove('show');
     if (viewName === 'analytics') renderAnalytics();
+    if (viewName === 'customers') renderCustomersTable();
+    if (viewName === 'blog') renderBlogCards();
 }
 DOM.navLinks.forEach(link => {
     link.addEventListener('click', (e) => { e.preventDefault(); switchView(link.dataset.view); });
@@ -171,17 +313,134 @@ DOM.sidebarOverlay.addEventListener('click', () => {
 });
 
 // ============================================================
-// FIRESTORE REAL-TIME LISTENER
+// FIRESTORE REAL-TIME LISTENERS
 // ============================================================
-ordersRef.orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+// Orders Listener (listens to all orders in database)
+ordersRef.onSnapshot((snapshot) => {
     allOrders = [];
     snapshot.forEach(doc => { allOrders.push({ id: doc.id, ...doc.data() }); });
+    allOrders.sort((a, b) => {
+        const timeA = getTimestampMillis(a.createdAt || a.orderDate || a.date);
+        const timeB = getTimestampMillis(b.createdAt || b.orderDate || b.date);
+        return timeB - timeA;
+    });
     renderDashboard();
     renderOrdersTable();
+    rebuildCustomersList(); // Automatically reflects new/existing orders in Customers page!
 }, (error) => {
-    console.error("Firestore error:", error);
-    showToast('Error connecting to database.', 'error');
+    console.error("Firestore orders error:", error);
+    showToast('Error connecting to orders database.', 'error');
 });
+
+// Customers Listener
+customersRef.onSnapshot((snapshot) => {
+    dbCustomers = [];
+    snapshot.forEach(doc => { dbCustomers.push({ id: doc.id, ...doc.data() }); });
+    rebuildCustomersList();
+}, (error) => {
+    console.error("Firestore customers error:", error);
+});
+
+// Blogs Listener
+blogsRef.onSnapshot((snapshot) => {
+    allBlogs = [];
+    snapshot.forEach(doc => { allBlogs.push({ id: doc.id, ...doc.data() }); });
+    allBlogs.sort((a, b) => getTimestampMillis(b.createdAt) - getTimestampMillis(a.createdAt));
+    renderBlogCards();
+}, (error) => {
+    console.error("Firestore blogs error:", error);
+});
+
+// Rebuild customer directory by combining explicit customers and all orders from the database
+function rebuildCustomersList() {
+    const map = new Map();
+
+    // 1. First add explicit customers from customersRef
+    dbCustomers.forEach(c => {
+        const name = (c.name || '').trim();
+        const phone = (c.phone || '').trim();
+        const email = (c.email || '').trim();
+        const key = (email || phone || name).toLowerCase();
+        if (key) {
+            map.set(key, {
+                id: c.id,
+                isDbCustomer: true,
+                name: name || 'Unnamed Customer',
+                phone: phone,
+                email: email,
+                address: c.address || '',
+                notes: c.notes || '',
+                createdAt: c.createdAt || null,
+                totalOrders: 0,
+                totalSpent: 0
+            });
+        }
+    });
+
+    // 2. Aggregate and reflect every customer from allOrders in the database
+    allOrders.forEach(o => {
+        const name = (o.customerName || '').trim();
+        const phone = (o.phone || '').trim();
+        const email = (o.customerEmail || o.email || '').trim();
+        if (!name && !phone && !email) return;
+
+        let foundKey = null;
+        if (email && map.has(email.toLowerCase())) foundKey = email.toLowerCase();
+        if (!foundKey && phone && map.has(phone.toLowerCase())) foundKey = phone.toLowerCase();
+        if (!foundKey && name && map.has(name.toLowerCase())) foundKey = name.toLowerCase();
+
+        if (!foundKey) {
+            for (const [k, cust] of map.entries()) {
+                if (email && cust.email && cust.email.toLowerCase() === email.toLowerCase()) {
+                    foundKey = k; break;
+                }
+                if (phone && cust.phone && cust.phone === phone) {
+                    foundKey = k; break;
+                }
+                if (name && cust.name && cust.name.toLowerCase() === name.toLowerCase()) {
+                    foundKey = k; break;
+                }
+            }
+        }
+
+        const items = normalizeItems(o);
+        const orderTotal = calcTotal(items);
+
+        if (foundKey) {
+            const cust = map.get(foundKey);
+            if (!cust.email && email) cust.email = email;
+            if (!cust.phone && phone) cust.phone = phone;
+            if ((!cust.name || cust.name === 'Unnamed Customer') && name) cust.name = name;
+            cust.totalOrders = (cust.totalOrders || 0) + 1;
+            cust.totalSpent = (cust.totalSpent || 0) + orderTotal;
+            if (!cust.createdAt && (o.createdAt || o.orderDate || o.date)) {
+                cust.createdAt = o.createdAt || o.orderDate || o.date;
+            }
+        } else {
+            const primaryKey = (email || phone || name).toLowerCase();
+            map.set(primaryKey, {
+                id: 'order_cust_' + (o.id || primaryKey.replace(/\s+/g, '_')),
+                isDbCustomer: false,
+                name: name || 'Unnamed Customer',
+                phone: phone || '',
+                email: email || '',
+                address: o.address || '',
+                notes: `From Order #${o.orderId || ''}`,
+                createdAt: o.createdAt || o.orderDate || o.date || null,
+                totalOrders: 1,
+                totalSpent: orderTotal
+            });
+        }
+    });
+
+    allCustomers = Array.from(map.values()).sort((a, b) => {
+        return getTimestampMillis(b.createdAt) - getTimestampMillis(a.createdAt);
+    });
+
+    renderCustomersTable();
+    updateCustomerKpis();
+    updateCustomerSuggestions();
+}
 
 // ============================================================
 // DASHBOARD
@@ -193,11 +452,11 @@ function renderDashboard() {
     allOrders.forEach(o => {
         const items = normalizeItems(o);
         totalProfit += calcTotal(items);
-        items.forEach(it => { if(it.name) itemCount[it.name] = (itemCount[it.name]||0) + (parseInt(it.qty)||1); });
+        items.forEach(it => { if (it.name) itemCount[it.name] = (itemCount[it.name] || 0) + (parseInt(it.qty) || 1); });
     });
     DOM.totalOrdersCount.textContent = totalOrders;
     DOM.totalProfitValue.textContent = 'Rs. ' + totalProfit.toLocaleString('en-IN');
-    const topItem = Object.entries(itemCount).sort((a,b) => b[1]-a[1])[0];
+    const topItem = Object.entries(itemCount).sort((a, b) => b[1] - a[1])[0];
     DOM.topItemName.textContent = topItem ? topItem[0] : '-';
 
     const recent = allOrders.slice(0, 5);
@@ -207,7 +466,7 @@ function renderDashboard() {
     } else {
         DOM.recentEmptyState.style.display = 'none';
         recent.forEach((order, idx) => {
-            DOM.recentOrdersBody.appendChild(createOrderRow(order, idx+1, false));
+            DOM.recentOrdersBody.appendChild(createOrderRow(order, idx + 1, false));
         });
     }
 }
@@ -223,8 +482,8 @@ function getFilteredOrders() {
     const itemFilter = DOM.filterItem.value;
     if (search) {
         filtered = filtered.filter(o =>
-            (o.customerName||'').toLowerCase().includes(search) ||
-            (o.orderId||'').toLowerCase().includes(search)
+            (o.customerName || '').toLowerCase().includes(search) ||
+            (o.orderId || '').toLowerCase().includes(search)
         );
     }
     if (dateFrom) filtered = filtered.filter(o => o.orderDate >= dateFrom);
@@ -246,7 +505,7 @@ function renderOrdersTable() {
     } else {
         DOM.ordersEmptyState.style.display = 'none';
         filtered.forEach((order, idx) => {
-            DOM.allOrdersBody.appendChild(createOrderRow(order, idx+1, true));
+            DOM.allOrdersBody.appendChild(createOrderRow(order, idx + 1, true));
         });
     }
 }
@@ -260,31 +519,31 @@ function createOrderRow(order, serialNo, showPhone) {
 
     // Build combined inline strings for Items/Qty/Price columns
     const itemNamesHtml = items.map(it => `<span class="item-badge">${escapeHtml(it.name)}</span>`).join(' ');
-    const itemQtyText = items.map(it => it.qty||1).join(' / ');
-    const itemPricesHtml = items.map(it => `Rs. ${(parseFloat(it.unitPrice)||0).toLocaleString('en-IN')}`).join(' / ');
+    const itemQtyText = items.map(it => it.qty || 1).join(' / ');
+    const itemPricesHtml = items.map(it => `Rs. ${(parseFloat(it.unitPrice) || 0).toLocaleString('en-IN')}`).join(' / ');
 
     // Column 1: S.No
     tr.insertCell().textContent = serialNo;
-    
+
     // Column 2: Order ID
     tr.insertCell().textContent = order.orderId || '-';
-    
+
     // Column 3: Customer
     tr.insertCell().textContent = order.customerName || '-';
-    
+
     if (showPhone) {
         // Column 4: Phone (All Orders Only)
         tr.insertCell().textContent = order.phone || '-';
-        
+
         // Column 5: Items
         const c5 = tr.insertCell();
         c5.innerHTML = itemNamesHtml;
-        
+
         // Column 6: Qty
         const c6 = tr.insertCell();
         c6.style.textAlign = 'center';
         c6.textContent = itemQtyText;
-        
+
         // Column 7: Unit Price
         const c7 = tr.insertCell();
         c7.innerHTML = itemPricesHtml;
@@ -292,23 +551,23 @@ function createOrderRow(order, serialNo, showPhone) {
         // Column 4: Items (Recent Orders Only)
         const c4 = tr.insertCell();
         c4.innerHTML = itemNamesHtml;
-        
+
         // Column 5: Qty
         const c5 = tr.insertCell();
         c5.style.textAlign = 'center';
         c5.textContent = itemQtyText;
     }
-    
+
     // SHARED COLUMNS
     // Recent: Col 6 | All: Col 8
     const cTotal = tr.insertCell();
     cTotal.className = 'amount';
     cTotal.textContent = 'Rs. ' + total.toLocaleString('en-IN');
-    
+
     // Recent: Col 7 | All: Col 9
     const cDate = tr.insertCell();
     cDate.textContent = formattedDate;
-    
+
     // Recent: Col 8 | All: Col 10
     const cActions = tr.insertCell();
     cActions.className = 'actions-cell';
@@ -317,7 +576,7 @@ function createOrderRow(order, serialNo, showPhone) {
         <button class="btn-icon bill" onclick="openBillModal('${order.id}')" title="Download Bill"><i class="fas fa-file-invoice"></i></button>
         <button class="btn-icon delete" onclick="openDeleteModal('${order.id}')" title="Delete"><i class="fas fa-trash-alt"></i></button>
     `;
-    
+
     return tr;
 }
 
@@ -341,10 +600,10 @@ DOM.clearFiltersBtn.addEventListener('click', () => {
 function createItemSelectHTML(selected) {
     let opts = '<option value="">Select item...</option>';
     ITEM_OPTIONS.forEach(name => {
-        opts += `<option${selected===name?' selected':''}>${name}</option>`;
+        opts += `<option${selected === name ? ' selected' : ''}>${name}</option>`;
     });
     const isCustom = selected && !ITEM_OPTIONS.includes(selected);
-    opts += `<option value="__custom__"${isCustom?' selected':''}> Custom...</option>`;
+    opts += `<option value="__custom__"${isCustom ? ' selected' : ''}> Custom...</option>`;
     return opts;
 }
 
@@ -354,10 +613,10 @@ function addItemRow(data) {
     const isCustom = data && data.name && !ITEM_OPTIONS.includes(data.name);
     row.innerHTML = `
         <div class="item-row-fields">
-            <select class="item-select" required>${createItemSelectHTML(data?.name||'')}</select>
-            <input type="text" class="item-custom-input" placeholder="Custom item name" style="display:${isCustom?'block':'none'}" value="${isCustom?escapeHtml(data.name):''}">
-            <input type="number" class="item-qty" placeholder="Qty" min="1" value="${data?.qty||1}" required>
-            <input type="number" class="item-price" placeholder="Price Rs." min="0" value="${data?.unitPrice||''}" required>
+            <select class="item-select" required>${createItemSelectHTML(data?.name || '')}</select>
+            <input type="text" class="item-custom-input" placeholder="Custom item name" style="display:${isCustom ? 'block' : 'none'}" value="${isCustom ? escapeHtml(data.name) : ''}">
+            <input type="number" class="item-qty" placeholder="Qty" min="1" value="${data?.qty || 1}" required>
+            <input type="number" class="item-price" placeholder="Price Rs." min="0" value="${data?.unitPrice || ''}" required>
         </div>
         <button type="button" class="btn-icon delete item-remove-btn" title="Remove item"><i class="fas fa-times-circle"></i></button>
     `;
@@ -411,8 +670,35 @@ function collectItemsFromForm() {
 DOM.addItemRowBtn.addEventListener('click', () => addItemRow());
 
 // ============================================================
-// ORDER MODAL  ADD / EDIT
+// ORDER MODAL  ADD / EDIT & CUSTOMER SYNC
 // ============================================================
+function updateCustomerSuggestions() {
+    if (!DOM.customerNameSuggestions) return;
+    DOM.customerNameSuggestions.innerHTML = '';
+    allCustomers.forEach(c => {
+        if (c.name) {
+            const opt = document.createElement('option');
+            opt.value = c.name;
+            const extra = [c.phone, c.email].filter(Boolean).join(' | ');
+            if (extra) opt.label = extra;
+            DOM.customerNameSuggestions.appendChild(opt);
+        }
+    });
+}
+
+// Auto-fill phone & email when existing customer is selected/typed
+DOM.customerName?.addEventListener('input', () => {
+    const val = DOM.customerName.value.trim().toLowerCase();
+    if (!val) return;
+    const matched = allCustomers.find(c => (c.name || '').trim().toLowerCase() === val);
+    if (matched) {
+        if (matched.phone && !DOM.phoneNumber.value) DOM.phoneNumber.value = matched.phone;
+        if (matched.email && DOM.orderCustomerEmail && !DOM.orderCustomerEmail.value) {
+            DOM.orderCustomerEmail.value = matched.email;
+        }
+    }
+});
+
 function openAddModal() {
     DOM.editOrderId.value = '';
     DOM.orderForm.reset();
@@ -422,6 +708,8 @@ function openAddModal() {
     DOM.saveOrderBtn.innerHTML = '<i class="fas fa-save"></i> Save Order';
     DOM.orderDate.value = new Date().toISOString().split('T')[0];
     DOM.orderDescription.value = '';
+    if (DOM.orderCustomerEmail) DOM.orderCustomerEmail.value = '';
+    if (DOM.orderAutoSyncCustomer) DOM.orderAutoSyncCustomer.checked = true;
     DOM.orderModal.classList.add('show');
 }
 
@@ -432,6 +720,8 @@ function openEditModal(docId) {
     DOM.orderIdInput.value = order.orderId || '';
     DOM.customerName.value = order.customerName || '';
     DOM.phoneNumber.value = order.phone || '';
+    if (DOM.orderCustomerEmail) DOM.orderCustomerEmail.value = order.customerEmail || order.email || '';
+    if (DOM.orderAutoSyncCustomer) DOM.orderAutoSyncCustomer.checked = true;
     DOM.orderDate.value = order.orderDate || order.date || '';
     DOM.orderDescription.value = order.description || '';
     DOM.itemsRowsContainer.innerHTML = '';
@@ -449,6 +739,64 @@ DOM.addOrderBtnOrders.addEventListener('click', openAddModal);
 DOM.modalClose.addEventListener('click', closeModal);
 DOM.modalCancelBtn.addEventListener('click', closeModal);
 
+// Auto-sync customer into Customers collection when order is placed
+async function autoSyncCustomerFromOrder(orderData) {
+    const name = (orderData.customerName || '').trim();
+    const email = (orderData.customerEmail || orderData.email || '').trim();
+    const phone = (orderData.phone || '').trim();
+
+    if (!name && !email && !phone) return;
+
+    // Search for matching customer by email, phone, or name
+    let existingCust = null;
+    if (email) {
+        existingCust = allCustomers.find(c => (c.email || '').trim().toLowerCase() === email.toLowerCase());
+    }
+    if (!existingCust && phone) {
+        existingCust = allCustomers.find(c => (c.phone || '').trim() === phone);
+    }
+    if (!existingCust && name) {
+        existingCust = allCustomers.find(c => (c.name || '').trim().toLowerCase() === name.toLowerCase());
+    }
+
+    try {
+        if (existingCust) {
+            const updates = {
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            let changed = false;
+            if (!existingCust.email && email) {
+                updates.email = email;
+                changed = true;
+            }
+            if (!existingCust.phone && phone) {
+                updates.phone = phone;
+                changed = true;
+            }
+            if (name && existingCust.name !== name) {
+                updates.name = name;
+                changed = true;
+            }
+            if (changed) {
+                await customersRef.doc(existingCust.id).update(updates);
+            }
+        } else {
+            const newCust = {
+                name: name,
+                email: email,
+                phone: phone,
+                address: '',
+                notes: `Auto-created from Order #${orderData.orderId || ''}`,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            await customersRef.add(newCust);
+        }
+    } catch (err) {
+        console.warn("Auto-sync customer notice:", err);
+    }
+}
+
 // Save order
 DOM.orderForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -458,16 +806,21 @@ DOM.orderForm.addEventListener('submit', async (e) => {
         return;
     }
     const totalAmount = calcTotal(items);
+    const custEmail = DOM.orderCustomerEmail ? DOM.orderCustomerEmail.value.trim() : '';
+    const shouldAutoSync = DOM.orderAutoSyncCustomer ? DOM.orderAutoSyncCustomer.checked : true;
+
     const orderData = {
         orderId: DOM.orderIdInput.value.trim(),
         customerName: DOM.customerName.value.trim(),
         phone: DOM.phoneNumber.value.trim(),
+        email: custEmail,
+        customerEmail: custEmail,
         orderDate: DOM.orderDate.value,
         items: items,
         description: DOM.orderDescription.value.trim(),
         totalAmount: totalAmount,
         amount: totalAmount, // backward compat field
-        item: items.map(i=>i.name).join(', '), // backward compat
+        item: items.map(i => i.name).join(', '), // backward compat
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
     const docId = DOM.editOrderId.value;
@@ -482,6 +835,12 @@ DOM.orderForm.addEventListener('submit', async (e) => {
             finalDocId = newDoc.id;
             showToast('Order added successfully!', 'success');
         }
+
+        // Reflect customer in Customers page automatically
+        if (shouldAutoSync && orderData.customerName) {
+            await autoSyncCustomerFromOrder(orderData);
+        }
+
         closeModal();
 
         // Auto-send to WhatsApp if phone is provided
@@ -508,14 +867,14 @@ DOM.orderForm.addEventListener('submit', async (e) => {
 function openBillModal(docId) {
     const order = allOrders.find(o => o.id === docId);
     if (!order) return;
-    
+
     document.getElementById('currentBillDocId').value = docId;
-    
+
     // Hide WhatsApp if no phone
     document.querySelectorAll('.whatsapp-only').forEach(btn => {
         btn.style.display = order.phone ? 'flex' : 'none';
     });
-    
+
     DOM.billModal.classList.add('show');
 }
 
@@ -549,170 +908,172 @@ if (DOM.billModal) {
 // DOWNLOAD BILL — Premium Clean Invoice
 // ============================================================
 function downloadBill(docId, isPaid) {
-    var order = allOrders.find(function(o) { return o.id === docId; });
+    var order = allOrders.find(function (o) { return o.id === docId; });
     if (!order) return;
     var items = normalizeItems(order);
     var total = calcTotal(items);
     var dateVal = order.orderDate || order.date;
     var invoiceDate = dateVal ? formatDate(dateVal) : formatDate(new Date().toISOString().split('T')[0]);
 
-        var itemRowsHtml = '';
-        for (var i = 0; i < items.length; i++) {
-            var it = items[i];
-            var lineTotal = (parseFloat(it.qty) || 1) * (parseFloat(it.unitPrice) || 0);
-            var rowBg = i % 2 === 0 ? '#FDFAF6' : '#FFFFFF';
-            itemRowsHtml +=
-                '<tr style="background:' + rowBg + ';">' +
-                '<td style="padding:10px 12px;border-bottom:1px solid #EDE8E0;font-size:12px;color:#5A4A3A;text-align:center;width:42px;">' + (i + 1) + '</td>' +
-                '<td style="padding:10px 14px;border-bottom:1px solid #EDE8E0;font-size:12px;color:#2C1F14;font-weight:500;">' + escapeHtml(it.name) + '</td>' +
-                '<td style="padding:10px 12px;border-bottom:1px solid #EDE8E0;font-size:12px;color:#5A4A3A;text-align:center;width:50px;">' + (it.qty || 1) + '</td>' +
-                '<td style="padding:10px 14px;border-bottom:1px solid #EDE8E0;font-size:12px;color:#5A4A3A;text-align:right;width:100px;">Rs. ' + (parseFloat(it.unitPrice) || 0).toLocaleString('en-IN') + '</td>' +
-                '<td style="padding:10px 14px;border-bottom:1px solid #EDE8E0;font-size:12px;color:#2C1F14;font-weight:600;text-align:right;width:100px;">Rs. ' + lineTotal.toLocaleString('en-IN') + '</td>' +
-                '</tr>';
-        }
-        for (var j = items.length; j < 6; j++) {
-            var rowBg2 = j % 2 === 0 ? '#FDFAF6' : '#FFFFFF';
-            itemRowsHtml +=
-                '<tr style="background:' + rowBg2 + ';">' +
-                '<td style="padding:10px 12px;border-bottom:1px solid #EDE8E0;font-size:12px;">&nbsp;</td>' +
-                '<td style="padding:10px 14px;border-bottom:1px solid #EDE8E0;"></td>' +
-                '<td style="padding:10px 12px;border-bottom:1px solid #EDE8E0;"></td>' +
-                '<td style="padding:10px 14px;border-bottom:1px solid #EDE8E0;"></td>' +
-                '<td style="padding:10px 14px;border-bottom:1px solid #EDE8E0;"></td>' +
-                '</tr>';
-        }
+    var itemRowsHtml = '';
+    for (var i = 0; i < items.length; i++) {
+        var it = items[i];
+        var lineTotal = (parseFloat(it.qty) || 1) * (parseFloat(it.unitPrice) || 0);
+        var rowBg = i % 2 === 0 ? '#FDFAF6' : '#FFFFFF';
+        itemRowsHtml +=
+            '<tr style="background:' + rowBg + ';">' +
+            '<td style="padding:10px 12px;border-bottom:1px solid #EDE8E0;font-size:12px;color:#5A4A3A;text-align:center;width:42px;">' + (i + 1) + '</td>' +
+            '<td style="padding:10px 14px;border-bottom:1px solid #EDE8E0;font-size:12px;color:#2C1F14;font-weight:500;">' + escapeHtml(it.name) + '</td>' +
+            '<td style="padding:10px 12px;border-bottom:1px solid #EDE8E0;font-size:12px;color:#5A4A3A;text-align:center;width:50px;">' + (it.qty || 1) + '</td>' +
+            '<td style="padding:10px 14px;border-bottom:1px solid #EDE8E0;font-size:12px;color:#5A4A3A;text-align:right;width:100px;">Rs. ' + (parseFloat(it.unitPrice) || 0).toLocaleString('en-IN') + '</td>' +
+            '<td style="padding:10px 14px;border-bottom:1px solid #EDE8E0;font-size:12px;color:#2C1F14;font-weight:600;text-align:right;width:100px;">Rs. ' + lineTotal.toLocaleString('en-IN') + '</td>' +
+            '</tr>';
+    }
+    for (var j = items.length; j < 6; j++) {
+        var rowBg2 = j % 2 === 0 ? '#FDFAF6' : '#FFFFFF';
+        itemRowsHtml +=
+            '<tr style="background:' + rowBg2 + ';">' +
+            '<td style="padding:10px 12px;border-bottom:1px solid #EDE8E0;font-size:12px;">&nbsp;</td>' +
+            '<td style="padding:10px 14px;border-bottom:1px solid #EDE8E0;"></td>' +
+            '<td style="padding:10px 12px;border-bottom:1px solid #EDE8E0;"></td>' +
+            '<td style="padding:10px 14px;border-bottom:1px solid #EDE8E0;"></td>' +
+            '<td style="padding:10px 14px;border-bottom:1px solid #EDE8E0;"></td>' +
+            '</tr>';
+    }
 
-        var statusBadge = isPaid
-            ? '<span style="font-size:12px;color:#2C7A3E;font-weight:700;background:#E6F4EC;padding:2px 10px;border-radius:3px;">PAID</span>'
-            : '<span style="font-size:12px;color:#C5691A;font-weight:700;background:#FEF0E6;padding:2px 10px;border-radius:3px;">AMOUNT DUE</span>';
+    var statusBadge = isPaid
+        ? '<span style="font-size:12px;color:#2C7A3E;font-weight:700;background:#E6F4EC;padding:2px 10px;border-radius:3px;">PAID</span>'
+        : '<span style="font-size:12px;color:#C5691A;font-weight:700;background:#FEF0E6;padding:2px 10px;border-radius:3px;">AMOUNT DUE</span>';
 
-        var qrSection = '';
-        if (!isPaid) {
-            qrSection =
-                '<div style="flex:0 0 auto;">' +
-                '<div style="font-size:9px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;">Scan to Pay (UPI)</div>' +
-                '<div style="display:inline-block;border:2px solid #EDE8E0;border-radius:8px;padding:6px;background:#FDFAF6;">' +
-                '<img src="' + QR_B64 + '" width="130" height="130" style="display:block;" alt="UPI QR">' +
-                '</div>' +
-                '<div style="font-size:10px;color:#7A6B5D;margin-top:6px;">UPI ID: 9035653901@airtel</div>' +
-                '</div>';
-        } else if (isPaid) {
-            qrSection = '<div style="flex:0 0 auto;"><div style="padding:14px 0;font-size:13px;color:#2C7A3E;font-weight:700;">&#10003; Payment Received &#8212; Thank you!</div></div>';
-        }
+    var qrSection = '';
+    if (!isPaid) {
+        qrSection =
+            '<div style="flex:0 0 auto;">' +
+            '<div style="font-size:9px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;">Scan to Pay (UPI)</div>' +
+            '<div style="display:inline-block;border:2px solid #EDE8E0;border-radius:8px;padding:6px;background:#FDFAF6;">' +
+            '<img src="' + UPI_QR_URL + '" width="130" height="130" style="display:block;" crossorigin="anonymous" alt="UPI QR">' +
+            '</div>' +
+            '<div style="font-size:10px;color:#7A6B5D;margin-top:6px;">UPI ID: 9035653901@airtel</div>' +
+            '</div>';
+    } else if (isPaid) {
+        qrSection = '<div style="flex:0 0 auto;"><div style="padding:14px 0;font-size:13px;color:#2C7A3E;font-weight:700;">&#10003; Payment Received &#8212; Thank you!</div></div>';
+    }
 
-        var h = '';
-        h += '<div style="width:210mm;min-height:297mm;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#FFFFFF;color:#2C1F14;position:relative;box-sizing:border-box;">';
-        h += '<div style="background:#2C1F14;padding:22px 40px;display:table;width:100%;box-sizing:border-box;">';
-        h += '<div style="display:table-cell;vertical-align:middle;">';
-        h += '<img src="' + LOGO_B64 + '" style="height:52px;width:auto;display:block;" alt="LASA CHOCOLATES">';
-        h += '</div>';
-        h += '<div style="display:table-cell;vertical-align:middle;text-align:right;">';
-        h += '<div style="font-size:32px;font-weight:700;color:#C5A467;letter-spacing:6px;line-height:1;">INVOICE</div>';
-        h += '<div style="font-size:11px;color:#A08060;letter-spacing:2px;margin-top:4px;text-transform:uppercase;">Tax Invoice</div>';
-        h += '</div>';
-        h += '</div>';
-        h += '<div style="height:4px;background:linear-gradient(90deg,#C5A467,#E8C988,#C5A467);"></div>';
-        h += '<div style="background:#F8F3EC;padding:14px 40px;display:table;width:100%;box-sizing:border-box;border-bottom:1px solid #EDE8E0;">';
-        h += '<div style="display:table-cell;vertical-align:middle;">';
-        h += '<span style="font-size:10px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">Invoice No.</span>&nbsp;&nbsp;';
-        h += '<span style="font-size:13px;color:#2C1F14;font-weight:700;">' + escapeHtml(order.orderId || '-') + '</span>';
-        h += '</div>';
-        h += '<div style="display:table-cell;vertical-align:middle;text-align:center;">';
-        h += '<span style="font-size:10px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">Date</span>&nbsp;&nbsp;';
-        h += '<span style="font-size:13px;color:#2C1F14;font-weight:600;">' + invoiceDate + '</span>';
-        h += '</div>';
-        h += '<div style="display:table-cell;vertical-align:middle;text-align:right;">';
-        h += '<span style="font-size:10px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">Status</span>&nbsp;&nbsp;';
-        h += statusBadge;
-        h += '</div>';
-        h += '</div>';
-        h += '<div style="display:table;width:100%;padding:22px 40px 16px;box-sizing:border-box;">';
-        h += '<div style="display:table-cell;width:50%;vertical-align:top;">';
-        h += '<div style="font-size:9px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;">Bill To</div>';
-        h += '<div style="font-size:14px;color:#2C1F14;font-weight:700;">' + escapeHtml(order.customerName || '-') + '</div>';
-        h += '<div style="font-size:11px;color:#7A6B5D;margin-top:4px;">' + (order.phone ? '&#128222; ' + escapeHtml(order.phone) : '') + '</div>';
-        h += '</div>';
-        h += '<div style="display:table-cell;width:50%;vertical-align:top;text-align:right;">';
-        h += '<div style="font-size:9px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;">Bill From</div>';
-        h += '<div style="font-size:14px;color:#2C1F14;font-weight:700;">LASA CHOCOLATES</div>';
-        h += '<div style="font-size:11px;color:#7A6B5D;margin-top:4px;">order.lasachocolates@gmail.com</div>';
-        h += '<div style="font-size:11px;color:#7A6B5D;">@lasa.chocolates</div>';
-        h += '</div>';
-        h += '</div>';
-        h += '<div style="margin:0 40px;border-bottom:2px solid #C5A467;"></div>';
-        h += '<div style="padding:0 40px;margin-top:12px;">';
-        h += '<table style="width:100%;border-collapse:collapse;">';
-        h += '<thead><tr style="background:#2C1F14;">';
-        h += '<th style="padding:10px 12px;font-size:11px;color:#C5A467;font-weight:700;text-align:center;letter-spacing:1px;width:42px;">#</th>';
-        h += '<th style="padding:10px 14px;font-size:11px;color:#C5A467;font-weight:700;text-align:left;letter-spacing:1px;">Item Description</th>';
-        h += '<th style="padding:10px 12px;font-size:11px;color:#C5A467;font-weight:700;text-align:center;letter-spacing:1px;width:50px;">Qty</th>';
-        h += '<th style="padding:10px 14px;font-size:11px;color:#C5A467;font-weight:700;text-align:right;letter-spacing:1px;width:100px;">Unit Price</th>';
-        h += '<th style="padding:10px 14px;font-size:11px;color:#C5A467;font-weight:700;text-align:right;letter-spacing:1px;width:100px;">Total</th>';
-        h += '</tr></thead>';
-        h += '<tbody>' + itemRowsHtml + '</tbody>';
-        h += '</table>';
-        h += '</div>';
-        h += '<div style="padding:16px 40px 0;display:table;width:100%;box-sizing:border-box;">';
-        h += '<div style="display:table-cell;width:55%;vertical-align:top;">';
-        h += '<div style="font-size:9px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;">Notes / Description</div>';
-        var noteText = order.description ? escapeHtml(order.description).replace(/\n/g, '<br>') : 'Thank you for choosing LASA CHOCOLATES.';
-        h += '<div style="font-size:11px;color:#7A6B5D;line-height:1.6;">' + noteText + '</div>';
-        h += '</div>';
-        h += '<div style="display:table-cell;vertical-align:top;">';
-        h += '<table style="width:100%;border-collapse:collapse;">';
-        h += '<tr><td style="padding:6px 0;font-size:12px;color:#7A6B5D;border-bottom:1px solid #EDE8E0;">Subtotal</td>';
-        h += '<td style="padding:6px 0;font-size:12px;color:#2C1F14;font-weight:500;text-align:right;border-bottom:1px solid #EDE8E0;">Rs. ' + total.toLocaleString('en-IN') + '</td></tr>';
-        h += '<tr><td style="padding:6px 0;font-size:12px;color:#7A6B5D;border-bottom:1px solid #EDE8E0;">Tax (0%)</td>';
-        h += '<td style="padding:6px 0;font-size:12px;color:#2C1F14;font-weight:500;text-align:right;border-bottom:1px solid #EDE8E0;">Rs. 0</td></tr>';
-        h += '<tr style="background:#2C1F14;"><td style="padding:10px 12px;font-size:13px;color:#C5A467;font-weight:700;letter-spacing:1px;">TOTAL DUE</td>';
-        h += '<td style="padding:10px 12px;font-size:15px;color:#FFFFFF;font-weight:700;text-align:right;">Rs. ' + total.toLocaleString('en-IN') + '</td></tr>';
-        h += '</table>';
-        h += '</div>';
-        h += '</div>';
-        // QR + Signature
-        h += '<div style="padding:20px 40px 16px;display:flex;flex-direction:row;align-items:flex-end;justify-content:space-between;width:100%;box-sizing:border-box;">';
-        h += qrSection;
-        h += '<div style="flex:0 0 auto;text-align:center;min-width:180px;">';
-        h += '<img src="' + SIG_B64 + '" width="150" height="48" style="display:block;margin:0 auto 6px;" alt="Signature">';
-        h += '<div style="border-top:1.5px solid #C5A467;padding-top:6px;">';
-        h += '<div style="font-size:11px;color:#2C1F14;font-weight:700;">Authorized Signatory</div>';
-        h += '<div style="font-size:10px;color:#7A6B5D;margin-top:2px;">LASA CHOCOLATES</div>';
-        h += '</div>';
-        h += '</div>';
-        h += '</div>';
-        h += '<div style="background:#2C1F14;padding:16px 40px;margin-top:auto;display:table;width:100%;box-sizing:border-box;">';
-        h += '<div style="display:table-cell;vertical-align:middle;">';
-        h += '<div style="font-size:12px;color:#C5A467;font-weight:600;">Thank you for your order!</div>';
-        h += '<div style="font-size:10px;color:#8B7355;margin-top:2px;">We appreciate your trust in LASA CHOCOLATES</div>';
-        h += '</div>';
-        h += '<div style="display:table-cell;vertical-align:middle;text-align:right;">';
-        h += '<div style="font-size:10px;color:#8B7355;">order.lasachocolates@gmail.com</div>';
-        h += '<div style="font-size:10px;color:#8B7355;margin-top:2px;">@lasa.chocolates</div>';
-        h += '</div>';
-        h += '</div>';
-        h += '</div>';
+    var h = '';
+    h += '<div style="width:210mm;min-height:297mm;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#FFFFFF;color:#2C1F14;position:relative;box-sizing:border-box;">';
+    h += '<div style="background:#2C1F14;padding:22px 40px;display:table;width:100%;box-sizing:border-box;">';
+    h += '<div style="display:table-cell;vertical-align:middle;">';
+    h += '<img src="' + BRAND_LOGO_URL + '" style="height:54px;width:auto;display:block;filter:brightness(1.1);" crossorigin="anonymous" alt="LASA CHOCOLATES">';
+    h += '</div>';
+    h += '<div style="display:table-cell;vertical-align:middle;text-align:right;">';
+    h += '<div style="font-size:32px;font-weight:700;color:#C5A467;letter-spacing:6px;line-height:1;">INVOICE</div>';
+    h += '<div style="font-size:11px;color:#A08060;letter-spacing:2px;margin-top:4px;text-transform:uppercase;">Tax Invoice</div>';
+    h += '</div>';
+    h += '</div>';
+    h += '<div style="height:4px;background:linear-gradient(90deg,#C5A467,#E8C988,#C5A467);"></div>';
+    h += '<div style="background:#F8F3EC;padding:14px 40px;display:table;width:100%;box-sizing:border-box;border-bottom:1px solid #EDE8E0;">';
+    h += '<div style="display:table-cell;vertical-align:middle;">';
+    h += '<span style="font-size:10px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">Invoice No.</span>&nbsp;&nbsp;';
+    h += '<span style="font-size:13px;color:#2C1F14;font-weight:700;">' + escapeHtml(order.orderId || '-') + '</span>';
+    h += '</div>';
+    h += '<div style="display:table-cell;vertical-align:middle;text-align:center;">';
+    h += '<span style="font-size:10px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">Date</span>&nbsp;&nbsp;';
+    h += '<span style="font-size:13px;color:#2C1F14;font-weight:600;">' + invoiceDate + '</span>';
+    h += '</div>';
+    h += '<div style="display:table-cell;vertical-align:middle;text-align:right;">';
+    h += '<span style="font-size:10px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">Status</span>&nbsp;&nbsp;';
+    h += statusBadge;
+    h += '</div>';
+    h += '</div>';
+    h += '<div style="display:table;width:100%;padding:22px 40px 16px;box-sizing:border-box;">';
+    h += '<div style="display:table-cell;width:50%;vertical-align:top;">';
+    h += '<div style="font-size:9px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;">Bill To</div>';
+    h += '<div style="font-size:14px;color:#2C1F14;font-weight:700;">' + escapeHtml(order.customerName || '-') + '</div>';
+    if (order.phone) h += '<div style="font-size:11px;color:#7A6B5D;margin-top:4px;">&#128222; ' + escapeHtml(order.phone) + '</div>';
+    const ordEmail = order.customerEmail || order.email || '';
+    if (ordEmail) h += '<div style="font-size:11px;color:#7A6B5D;margin-top:2px;">&#9993; ' + escapeHtml(ordEmail) + '</div>';
+    h += '</div>';
+    h += '<div style="display:table-cell;width:50%;vertical-align:top;text-align:right;">';
+    h += '<div style="font-size:9px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;">Bill From</div>';
+    h += '<div style="font-size:14px;color:#2C1F14;font-weight:700;">LASA CHOCOLATES</div>';
+    h += '<div style="font-size:11px;color:#7A6B5D;margin-top:4px;">order.lasachocolates@gmail.com</div>';
+    h += '<div style="font-size:11px;color:#7A6B5D;">@lasa.chocolates</div>';
+    h += '</div>';
+    h += '</div>';
+    h += '<div style="margin:0 40px;border-bottom:2px solid #C5A467;"></div>';
+    h += '<div style="padding:0 40px;margin-top:12px;">';
+    h += '<table style="width:100%;border-collapse:collapse;">';
+    h += '<thead><tr style="background:#2C1F14;">';
+    h += '<th style="padding:10px 12px;font-size:11px;color:#C5A467;font-weight:700;text-align:center;letter-spacing:1px;width:42px;">#</th>';
+    h += '<th style="padding:10px 14px;font-size:11px;color:#C5A467;font-weight:700;text-align:left;letter-spacing:1px;">Item Description</th>';
+    h += '<th style="padding:10px 12px;font-size:11px;color:#C5A467;font-weight:700;text-align:center;letter-spacing:1px;width:50px;">Qty</th>';
+    h += '<th style="padding:10px 14px;font-size:11px;color:#C5A467;font-weight:700;text-align:right;letter-spacing:1px;width:100px;">Unit Price</th>';
+    h += '<th style="padding:10px 14px;font-size:11px;color:#C5A467;font-weight:700;text-align:right;letter-spacing:1px;width:100px;">Total</th>';
+    h += '</tr></thead>';
+    h += '<tbody>' + itemRowsHtml + '</tbody>';
+    h += '</table>';
+    h += '</div>';
+    h += '<div style="padding:16px 40px 0;display:table;width:100%;box-sizing:border-box;">';
+    h += '<div style="display:table-cell;width:55%;vertical-align:top;">';
+    h += '<div style="font-size:9px;color:#8B7355;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;">Notes / Description</div>';
+    var noteText = order.description ? escapeHtml(order.description).replace(/\n/g, '<br>') : 'Thank you for choosing LASA CHOCOLATES.';
+    h += '<div style="font-size:11px;color:#7A6B5D;line-height:1.6;">' + noteText + '</div>';
+    h += '</div>';
+    h += '<div style="display:table-cell;vertical-align:top;">';
+    h += '<table style="width:100%;border-collapse:collapse;">';
+    h += '<tr><td style="padding:6px 0;font-size:12px;color:#7A6B5D;border-bottom:1px solid #EDE8E0;">Subtotal</td>';
+    h += '<td style="padding:6px 0;font-size:12px;color:#2C1F14;font-weight:500;text-align:right;border-bottom:1px solid #EDE8E0;">Rs. ' + total.toLocaleString('en-IN') + '</td></tr>';
+    h += '<tr><td style="padding:6px 0;font-size:12px;color:#7A6B5D;border-bottom:1px solid #EDE8E0;">Tax (0%)</td>';
+    h += '<td style="padding:6px 0;font-size:12px;color:#2C1F14;font-weight:500;text-align:right;border-bottom:1px solid #EDE8E0;">Rs. 0</td></tr>';
+    h += '<tr style="background:#2C1F14;"><td style="padding:10px 12px;font-size:13px;color:#C5A467;font-weight:700;letter-spacing:1px;">TOTAL DUE</td>';
+    h += '<td style="padding:10px 12px;font-size:15px;color:#FFFFFF;font-weight:700;text-align:right;">Rs. ' + total.toLocaleString('en-IN') + '</td></tr>';
+    h += '</table>';
+    h += '</div>';
+    h += '</div>';
+    // QR + Signature
+    h += '<div style="padding:20px 40px 16px;display:flex;flex-direction:row;align-items:flex-end;justify-content:space-between;width:100%;box-sizing:border-box;">';
+    h += qrSection;
+    h += '<div style="flex:0 0 auto;text-align:center;min-width:180px;">';
+    h += '<img src="' + SIG_B64 + '" width="150" height="48" style="display:block;margin:0 auto 6px;" alt="Signature">';
+    h += '<div style="border-top:1.5px solid #C5A467;padding-top:6px;">';
+    h += '<div style="font-size:11px;color:#2C1F14;font-weight:700;">Authorized Signatory</div>';
+    h += '<div style="font-size:10px;color:#7A6B5D;margin-top:2px;">LASA CHOCOLATES</div>';
+    h += '</div>';
+    h += '</div>';
+    h += '</div>';
+    h += '<div style="background:#2C1F14;padding:16px 40px;margin-top:auto;display:table;width:100%;box-sizing:border-box;">';
+    h += '<div style="display:table-cell;vertical-align:middle;">';
+    h += '<div style="font-size:12px;color:#C5A467;font-weight:600;">Thank you for your order!</div>';
+    h += '<div style="font-size:10px;color:#8B7355;margin-top:2px;">We appreciate your trust in LASA CHOCOLATES</div>';
+    h += '</div>';
+    h += '<div style="display:table-cell;vertical-align:middle;text-align:right;">';
+    h += '<div style="font-size:10px;color:#8B7355;">order.lasachocolates@gmail.com</div>';
+    h += '<div style="font-size:10px;color:#8B7355;margin-top:2px;">@lasa.chocolates</div>';
+    h += '</div>';
+    h += '</div>';
+    h += '</div>';
 
-        var container = document.createElement('div');
-        container.innerHTML = h;
-        container.style.position = 'absolute';
-        container.style.left = '-9999px';
-        document.body.appendChild(container);
+    var container = document.createElement('div');
+    container.innerHTML = h;
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    document.body.appendChild(container);
 
-        html2pdf().set({
-            margin: 0,
-            filename: 'LASA_Invoice_' + (order.orderId || 'bill') + '.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: 'avoid-all' }
-        }).from(container.firstElementChild).save().then(function() {
-            document.body.removeChild(container);
-            showToast('Invoice ' + (order.orderId || '') + ' downloaded!', 'success');
-        }).catch(function(err) {
-            console.error(err);
-            if (container.parentNode) document.body.removeChild(container);
-            showToast('Error generating invoice.', 'error');
-        });
+    html2pdf().set({
+        margin: 0,
+        filename: 'LASA_Invoice_' + (order.orderId || 'bill') + '.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: 'avoid-all' }
+    }).from(container.firstElementChild).save().then(function () {
+        document.body.removeChild(container);
+        showToast('Invoice ' + (order.orderId || '') + ' downloaded!', 'success');
+    }).catch(function (err) {
+        console.error(err);
+        if (container.parentNode) document.body.removeChild(container);
+        showToast('Error generating invoice.', 'error');
+    });
 }
 
 // ============================================================
@@ -724,46 +1085,47 @@ function shareOnWhatsApp(docId, isPaid) {
         showToast('No phone number available for this order.', 'error');
         return;
     }
-    
+
     const items = normalizeItems(order);
     const total = calcTotal(items);
     const orderId = order.orderId || '-';
-    
+
     let message = `----------------------------------\n`;
     message += isPaid ? `*LASA CHOCOLATES - PAYMENT RECEIPT* \n` : `*LASA CHOCOLATES - ORDER INVOICE* \n`;
     message += `----------------------------------\n\n`;
-    
+
     message += `*Order ID:* #${orderId}\n`;
     message += `*Customer:* ${order.customerName || '-'}\n`;
     message += `*Date:* ${formatDate(order.orderDate || order.date)}\n`;
     message += `*Status:* ${isPaid ? '✅ PAID' : '⏳ Awaiting Payment'}\n\n`;
-    
+
     message += `*ORDER DETAILS:*\n`;
     items.forEach(it => {
         const lineTotal = (parseFloat(it.qty) || 1) * (parseFloat(it.unitPrice) || 0);
         message += `• ${it.name}\n   ${it.qty || 1} x ₹${(parseFloat(it.unitPrice) || 0).toLocaleString('en-IN')} = *₹${lineTotal.toLocaleString('en-IN')}*\n`;
     });
-    
+
     message += `\n----------------------------------\n`;
     message += `*GRAND TOTAL: ₹${total.toLocaleString('en-IN')}*\n`;
     message += `----------------------------------\n`;
-    
+
     if (order.description) {
         message += `\n*Note:* ${order.description}\n`;
     }
-    
+
     if (!isPaid) {
-        message += `\n*PAYMENT LINK / DETAILS:*\n`;
+        message += `\n*PAYMENT DETAILS:*\n`;
         message += `UPI ID: 9035653901@airtel\n`;
+        message += `Scan QR to Pay: ${UPI_QR_URL}\n`;
     } else {
         message += `\n*Thank you!* We have received your payment. Your order is now being processed. 📦`;
     }
-    
+
     message += `\n\n_Generated by LASA Dashboard_`;
-    
+
     const cleanPhone = order.phone.replace(/\D/g, '');
     const finalPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
-    
+
     const url = `https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
 }
@@ -797,9 +1159,9 @@ DOM.deleteConfirmBtn.addEventListener('click', async () => {
 // ANALYTICS
 // ============================================================
 const CHART_COLORS = [
-    '#d4a574','#b8894e','#e8c9a0','#8b6f5a','#c4a88e',
-    '#60a5fa','#4ade80','#f87171','#facc15','#a78bfa',
-    '#fb923c','#2dd4bf','#f472b6','#818cf8','#34d399'
+    '#d4a574', '#b8894e', '#e8c9a0', '#8b6f5a', '#c4a88e',
+    '#60a5fa', '#4ade80', '#f87171', '#facc15', '#a78bfa',
+    '#fb923c', '#2dd4bf', '#f472b6', '#818cf8', '#34d399'
 ];
 
 function renderAnalytics() {
@@ -822,27 +1184,27 @@ function renderAnalytics() {
                 d = new Date(dateVal);
             }
             if (!isNaN(d.getTime())) {
-                const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-                monthlyRevenue[key] = (monthlyRevenue[key]||0) + orderTotal;
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                monthlyRevenue[key] = (monthlyRevenue[key] || 0) + orderTotal;
             }
         }
         items.forEach(it => {
             const name = it.name || 'Unknown';
-            const val = (parseFloat(it.qty)||1) * (parseFloat(it.unitPrice)||0);
-            itemProfit[name] = (itemProfit[name]||0) + val;
-            itemCount[name] = (itemCount[name]||0) + (parseInt(it.qty)||1);
+            const val = (parseFloat(it.qty) || 1) * (parseFloat(it.unitPrice) || 0);
+            itemProfit[name] = (itemProfit[name] || 0) + val;
+            itemCount[name] = (itemCount[name] || 0) + (parseInt(it.qty) || 1);
         });
     });
 
     // -- KPI Cards --
-    const totalRevenue = Object.values(itemProfit).reduce((a,b)=>a+b,0);
+    const totalRevenue = Object.values(itemProfit).reduce((a, b) => a + b, 0);
     const avgOrder = allOrders.length > 0 ? totalRevenue / allOrders.length : 0;
-    const sortedMonths = Object.entries(monthlyRevenue).sort((a,b)=>b[1]-a[1]);
+    const sortedMonths = Object.entries(monthlyRevenue).sort((a, b) => b[1] - a[1]);
     const bestMonthKey = sortedMonths.length > 0 ? sortedMonths[0][0] : null;
     let bestMonthLabel = '—';
     if (bestMonthKey) {
         const [yr, mo] = bestMonthKey.split('-');
-        bestMonthLabel = new Date(parseInt(yr), parseInt(mo)-1, 1)
+        bestMonthLabel = new Date(parseInt(yr), parseInt(mo) - 1, 1)
             .toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
     }
     const kpiRev = document.getElementById('kpiTotalRevenue');
@@ -856,7 +1218,7 @@ function renderAnalytics() {
 
     // -- Pie Chart --
     const labels = Object.keys(itemProfit);
-    const data   = Object.values(itemProfit);
+    const data = Object.values(itemProfit);
     const ctx = DOM.profitPieChart.getContext('2d');
     if (pieChart) pieChart.destroy();
     if (labels.length === 0) {
@@ -865,16 +1227,17 @@ function renderAnalytics() {
     }
     pieChart = new Chart(ctx, {
         type: 'doughnut',
-        data: { labels, datasets: [{ data, backgroundColor: CHART_COLORS.slice(0,labels.length), borderColor:'rgba(12,8,6,0.8)', borderWidth:2, hoverOffset:10 }] },
+        data: { labels, datasets: [{ data, backgroundColor: CHART_COLORS.slice(0, labels.length), borderColor: 'rgba(12,8,6,0.8)', borderWidth: 2, hoverOffset: 10 }] },
         options: {
-            responsive:true, maintainAspectRatio:true,
+            responsive: true, maintainAspectRatio: true,
             plugins: {
-                legend: { position:'bottom', labels: { color:'#c4a88e', padding:14, font:{family:"'Inter',sans-serif",size:11}, usePointStyle:true, pointStyleWidth:10 } },
-                tooltip: { backgroundColor:'#251510', titleColor:'#d4a574', bodyColor:'#f5e6d3', borderColor:'rgba(212,165,116,0.25)', borderWidth:1, padding:10,
-                    callbacks: { label: function(ctx) { const total=ctx.dataset.data.reduce((a,b)=>a+b,0); return ` Rs. ${ctx.parsed.toLocaleString('en-IN')} (${((ctx.parsed/total)*100).toFixed(1)}%)`; } }
+                legend: { position: 'bottom', labels: { color: '#c4a88e', padding: 14, font: { family: "'Inter',sans-serif", size: 11 }, usePointStyle: true, pointStyleWidth: 10 } },
+                tooltip: {
+                    backgroundColor: '#251510', titleColor: '#d4a574', bodyColor: '#f5e6d3', borderColor: 'rgba(212,165,116,0.25)', borderWidth: 1, padding: 10,
+                    callbacks: { label: function (ctx) { const total = ctx.dataset.data.reduce((a, b) => a + b, 0); return ` Rs. ${ctx.parsed.toLocaleString('en-IN')} (${((ctx.parsed / total) * 100).toFixed(1)}%)`; } }
                 }
             },
-            cutout:'58%',
+            cutout: '58%',
         }
     });
 
@@ -882,13 +1245,13 @@ function renderAnalytics() {
     const barCtx = document.getElementById('revenueBarChart');
     if (barCtx) {
         // Keep last 12 months sorted ascending
-        const sortedAsc = Object.entries(monthlyRevenue).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
+        const sortedAsc = Object.entries(monthlyRevenue).sort((a, b) => a[0].localeCompare(b[0])).slice(-12);
         const barLabels = sortedAsc.map(([key]) => {
             const [yr, mo] = key.split('-');
-            return new Date(parseInt(yr), parseInt(mo)-1, 1)
+            return new Date(parseInt(yr), parseInt(mo) - 1, 1)
                 .toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
         });
-        const barData = sortedAsc.map(([,v]) => Math.round(v));
+        const barData = sortedAsc.map(([, v]) => Math.round(v));
         if (window._barChart) window._barChart.destroy();
         window._barChart = new Chart(barCtx.getContext('2d'), {
             type: 'bar',
@@ -908,13 +1271,14 @@ function renderAnalytics() {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { backgroundColor:'#251510', titleColor:'#d4a574', bodyColor:'#f5e6d3', borderColor:'rgba(212,165,116,0.25)', borderWidth:1, padding:10,
+                    tooltip: {
+                        backgroundColor: '#251510', titleColor: '#d4a574', bodyColor: '#f5e6d3', borderColor: 'rgba(212,165,116,0.25)', borderWidth: 1, padding: 10,
                         callbacks: { label: ctx => ` ₹${ctx.parsed.y.toLocaleString('en-IN')}` }
                     }
                 },
                 scales: {
-                    x: { grid: { color:'rgba(212,165,116,0.06)' }, ticks: { color:'#c4a88e', font:{size:11} } },
-                    y: { grid: { color:'rgba(212,165,116,0.08)' }, ticks: { color:'#c4a88e', font:{size:11}, callback: v => '₹'+v.toLocaleString('en-IN') }, beginAtZero:true }
+                    x: { grid: { color: 'rgba(212,165,116,0.06)' }, ticks: { color: '#c4a88e', font: { size: 11 } } },
+                    y: { grid: { color: 'rgba(212,165,116,0.08)' }, ticks: { color: '#c4a88e', font: { size: 11 }, callback: v => '₹' + v.toLocaleString('en-IN') }, beginAtZero: true }
                 }
             }
         });
@@ -924,11 +1288,11 @@ function renderAnalytics() {
 
     // -- Profit Cards --
     DOM.profitCards.innerHTML = '';
-    labels.forEach((name,i) => {
+    labels.forEach((name, i) => {
         const card = document.createElement('div');
         card.className = 'profit-card';
         card.innerHTML = `
-            <span class="profit-card-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></span>
+            <span class="profit-card-dot" style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></span>
             <span class="profit-card-name">${escapeHtml(name)}</span>
             <span class="profit-card-count">${itemCount[name]} qty</span>
             <span class="profit-card-value">₹${data[i].toLocaleString('en-IN')}</span>
@@ -942,45 +1306,827 @@ function renderAnalytics() {
 // ============================================================
 DOM.exportPdfBtn.addEventListener('click', () => {
     const filtered = getFilteredOrders();
-    if (filtered.length === 0) { showToast('No orders to export.','error'); return; }
+    if (filtered.length === 0) { showToast('No orders to export.', 'error'); return; }
     let totalProfit = 0;
-    let tableRows = filtered.map((o,i) => {
+    let tableRows = filtered.map((o, i) => {
         const items = normalizeItems(o);
         const tot = calcTotal(items);
         totalProfit += tot;
-        const names = items.map(it=>escapeHtml(it.name)).join('<br>');
-        const qtys = items.map(it=>it.qty||1).join('<br>');
-        const prices = items.map(it=>'Rs. '+(parseFloat(it.unitPrice)||0).toLocaleString('en-IN')).join('<br>');
+        const names = items.map(it => escapeHtml(it.name)).join('<br>');
+        const qtys = items.map(it => it.qty || 1).join('<br>');
+        const prices = items.map(it => 'Rs. ' + (parseFloat(it.unitPrice) || 0).toLocaleString('en-IN')).join('<br>');
         const dateVal = o.orderDate || o.date;
-        return `<tr><td>${i+1}</td><td>${escapeHtml(o.orderId||'-')}</td><td>${escapeHtml(o.customerName||'-')}</td><td>${escapeHtml(o.phone||'-')}</td><td>${names}</td><td>${qtys}</td><td>${prices}</td><td>Rs. ${tot.toLocaleString('en-IN')}</td><td>${dateVal?formatDate(dateVal):'-'}</td></tr>`;
+        return `<tr><td>${i + 1}</td><td>${escapeHtml(o.orderId || '-')}</td><td>${escapeHtml(o.customerName || '-')}</td><td>${escapeHtml(o.phone || '-')}</td><td>${names}</td><td>${qtys}</td><td>${prices}</td><td>Rs. ${tot.toLocaleString('en-IN')}</td><td>${dateVal ? formatDate(dateVal) : '-'}</td></tr>`;
     }).join('');
 
-    const pdfHtml = `<div class="pdf-export-area"><h2>LASA CHOCOLATES  Order Report</h2><p style="text-align:center;margin-bottom:12px;font-size:11px;color:#666;">Generated on ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'})} | Total Orders: ${filtered.length} | Total Profit: Rs. ${totalProfit.toLocaleString('en-IN')}</p><table><thead><tr><th>S.No</th><th>Order ID</th><th>Customer</th><th>Phone</th><th>Items</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Date</th></tr></thead><tbody>${tableRows}</tbody></table><p class="pdf-footer">LASA CHOCOLATES  Confidential</p></div>`;
+    const pdfHtml = `<div class="pdf-export-area"><h2>LASA CHOCOLATES  Order Report</h2><p style="text-align:center;margin-bottom:12px;font-size:11px;color:#666;">Generated on ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })} | Total Orders: ${filtered.length} | Total Profit: Rs. ${totalProfit.toLocaleString('en-IN')}</p><table><thead><tr><th>S.No</th><th>Order ID</th><th>Customer</th><th>Phone</th><th>Items</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Date</th></tr></thead><tbody>${tableRows}</tbody></table><p class="pdf-footer">LASA CHOCOLATES  Confidential</p></div>`;
 
     const container = document.createElement('div');
     container.innerHTML = pdfHtml;
     document.body.appendChild(container);
-    html2pdf().set({ margin:0.4, filename:`LASA_Orders_${new Date().toISOString().split('T')[0]}.pdf`, image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2}, jsPDF:{unit:'in',format:'a4',orientation:'landscape'} }).from(container.firstElementChild).save().then(() => {
+    html2pdf().set({ margin: 0.4, filename: `LASA_Orders_${new Date().toISOString().split('T')[0]}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' } }).from(container.firstElementChild).save().then(() => {
         document.body.removeChild(container);
-        showToast('PDF downloaded successfully!','success');
-    }).catch((err) => { console.error(err); document.body.removeChild(container); showToast('Error generating PDF.','error'); });
+        showToast('PDF downloaded successfully!', 'success');
+    }).catch((err) => { console.error(err); document.body.removeChild(container); showToast('Error generating PDF.', 'error'); });
 });
 
 // ============================================================
 // TOAST
 // ============================================================
-function showToast(message, type='info') {
-    const icons = { success:'fa-check-circle', error:'fa-exclamation-circle', info:'fa-info-circle' };
+function showToast(message, type = 'info') {
+    const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `<i class="fas ${icons[type]||icons.info}"></i> <span>${message}</span>`;
+    toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i> <span>${message}</span>`;
     DOM.toastContainer.appendChild(toast);
-    setTimeout(() => { toast.classList.add('toast-out'); setTimeout(()=>toast.remove(),300); }, 3500);
+    setTimeout(() => { toast.classList.add('toast-out'); setTimeout(() => toast.remove(), 300); }, 3500);
 }
+
+// ============================================================
+// CUSTOMER REGISTRY MODULE
+// ============================================================
+function updateCustomerKpis() {
+    const total = allCustomers.length;
+    const withPhone = allCustomers.filter(c => c.phone && c.phone.trim().length > 0).length;
+    const withEmail = allCustomers.filter(c => c.email && c.email.trim().length > 0).length;
+    if (DOM.kpiTotalCustomers) DOM.kpiTotalCustomers.textContent = total;
+    if (DOM.kpiPhoneCustomers) DOM.kpiPhoneCustomers.textContent = withPhone;
+    if (DOM.kpiEmailCustomers) DOM.kpiEmailCustomers.textContent = withEmail;
+    if (DOM.shareTotalCount) DOM.shareTotalCount.textContent = total;
+}
+
+function getFilteredCustomers() {
+    const q = (DOM.customerSearchInput?.value || '').toLowerCase().trim();
+    if (!q) return allCustomers;
+    return allCustomers.filter(c => {
+        const name = (c.name || '').toLowerCase();
+        const phone = (c.phone || '').toLowerCase();
+        const email = (c.email || '').toLowerCase();
+        const addr = (c.address || '').toLowerCase();
+        return name.includes(q) || phone.includes(q) || email.includes(q) || addr.includes(q);
+    });
+}
+
+function renderCustomersTable() {
+    const filtered = getFilteredCustomers();
+    updateCustomerKpis();
+
+    if (!DOM.customersTableBody) return;
+
+    if (filtered.length === 0) {
+        DOM.customersTableBody.innerHTML = '';
+        if (DOM.customersEmptyState) DOM.customersEmptyState.style.display = 'block';
+        return;
+    }
+
+    if (DOM.customersEmptyState) DOM.customersEmptyState.style.display = 'none';
+
+    DOM.customersTableBody.innerHTML = filtered.map((c, i) => {
+        const formattedPhone = formatPhoneForWhatsApp(c.phone);
+        const phoneLink = formattedPhone ? `<a href="tel:${escapeHtml(c.phone)}" class="cust-contact-link" title="Call"><i class="fas fa-phone-alt"></i> ${escapeHtml(c.phone)}</a>` : '<span style="color:var(--text-muted)">—</span>';
+        const emailDisplay = c.email ? `<span class="cust-contact-link" style="cursor:default;"><i class="fas fa-envelope"></i> ${escapeHtml(c.email)}</span>` : '<span style="color:var(--text-muted)">—</span>';
+        const dateStr = c.createdAt ? formatDate(c.createdAt) : '-';
+
+        return `
+            <tr>
+                <td style="font-weight:600;color:var(--gold);">${i + 1}</td>
+                <td>
+                    <strong>${escapeHtml(c.name || 'Unnamed')}</strong>
+                    ${c.notes ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;"><i class="fas fa-sticky-note"></i> ${escapeHtml(c.notes)}</div>` : ''}
+                </td>
+                <td>${phoneLink}</td>
+                <td>${emailDisplay}</td>
+                <td style="max-width:200px;font-size:0.82rem;color:var(--cream-dim);">${escapeHtml(c.address || '—')}</td>
+                <td style="font-size:0.8rem;color:var(--text-muted);">${dateStr}</td>
+                <td>
+                    <div class="cust-action-btn-row">
+                        ${formattedPhone ? `
+                            <button type="button" class="btn-icon btn-icon-wa" onclick="sendWelcomeWhatsAppByDocId('${c.id}')" title="Send Welcome Message via WhatsApp">
+                                <i class="fab fa-whatsapp"></i>
+                            </button>
+                        ` : ''}
+                        ${c.email ? `
+                            <button type="button" class="btn-icon btn-icon-welcome" onclick="triggerManualWelcomeEmail('${c.id}')" title="Send Welcome Email (EmailJS)">
+                                <i class="fas fa-envelope-open-text"></i>
+                            </button>
+                        ` : ''}
+                        <button type="button" class="btn-icon btn-edit" onclick="openEditCustomerModal('${c.id}')" title="Edit Profile">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn-icon btn-delete" onclick="openDeleteCustomerModal('${c.id}')" title="Delete Profile">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function openAddCustomerModal() {
+    DOM.editCustomerId.value = '';
+    DOM.customerModalTitle.innerHTML = '<i class="fas fa-user-plus"></i> Add Customer';
+    DOM.custName.value = '';
+    DOM.custPhone.value = '';
+    DOM.custEmail.value = '';
+    DOM.custAddress.value = '';
+    DOM.custNotes.value = '';
+    const welcomeEmailRow = document.getElementById('sendWelcomeEmailRow');
+    if (welcomeEmailRow) welcomeEmailRow.style.display = 'flex';
+    if (DOM.sendWelcomeEmailCheck) DOM.sendWelcomeEmailCheck.checked = true;
+    const welcomeWARow = document.getElementById('sendWelcomeWhatsAppRow');
+    if (welcomeWARow) welcomeWARow.style.display = 'flex';
+    if (DOM.sendWelcomeWhatsAppCheck) DOM.sendWelcomeWhatsAppCheck.checked = true;
+    DOM.customerModal.classList.add('show');
+    DOM.custName.focus();
+}
+
+function openEditCustomerModal(docId) {
+    const cust = allCustomers.find(c => c.id === docId);
+    if (!cust) return;
+    DOM.editCustomerId.value = cust.isDbCustomer ? docId : '';
+    DOM.customerModalTitle.innerHTML = '<i class="fas fa-user-edit"></i> Edit Customer';
+    DOM.custName.value = cust.name || '';
+    DOM.custPhone.value = cust.phone || '';
+    DOM.custEmail.value = cust.email || '';
+    DOM.custAddress.value = cust.address || '';
+    DOM.custNotes.value = cust.notes || '';
+    const welcomeEmailRow = document.getElementById('sendWelcomeEmailRow');
+    if (welcomeEmailRow) welcomeEmailRow.style.display = 'none';
+    const welcomeWARow = document.getElementById('sendWelcomeWhatsAppRow');
+    if (welcomeWARow) welcomeWARow.style.display = 'none';
+    DOM.customerModal.classList.add('show');
+    DOM.custName.focus();
+}
+
+function closeCustomerModal() {
+    DOM.customerModal.classList.remove('show');
+}
+
+DOM.addCustomerBtn?.addEventListener('click', openAddCustomerModal);
+DOM.customerModalClose?.addEventListener('click', closeCustomerModal);
+DOM.customerCancelBtn?.addEventListener('click', closeCustomerModal);
+
+DOM.customerForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const docId = DOM.editCustomerId.value;
+    const shouldSendEmail = !docId && DOM.sendWelcomeEmailCheck && DOM.sendWelcomeEmailCheck.checked;
+    const shouldSendWA = !docId && DOM.sendWelcomeWhatsAppCheck && DOM.sendWelcomeWhatsAppCheck.checked;
+
+    const custData = {
+        name: DOM.custName.value.trim(),
+        phone: DOM.custPhone.value.trim(),
+        email: DOM.custEmail.value.trim(),
+        address: DOM.custAddress.value.trim(),
+        notes: DOM.custNotes.value.trim(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+
+    try {
+        if (docId && !docId.startsWith('order_cust_')) {
+            await customersRef.doc(docId).update(custData);
+            showToast('Customer profile updated successfully!', 'success');
+        } else {
+            custData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            await customersRef.add(custData);
+            showToast('Customer registered successfully! 🍫', 'success');
+
+            // 1. Send Automated Welcome Email via EmailJS
+            if (shouldSendEmail && custData.email) {
+                sendWelcomeEmail(custData, true);
+            }
+
+            // 2. Open WhatsApp Welcome Message for Customer
+            if (shouldSendWA && custData.phone) {
+                setTimeout(() => sendWelcomeWhatsApp(custData), 600);
+            }
+        }
+        closeCustomerModal();
+    } catch (err) {
+        console.error("Save customer error:", err);
+        showToast('Error saving customer profile.', 'error');
+    }
+});
+
+// --- WhatsApp Helper & Welcome Sender ---
+function formatPhoneForWhatsApp(phoneRaw) {
+    if (!phoneRaw) return null;
+    let digits = phoneRaw.toString().replace(/\D/g, '');
+    if (!digits || digits.length < 10) return null;
+
+    // 10-digit Indian standard mobile number
+    if (digits.length === 10) {
+        return '91' + digits;
+    }
+    // 11-digit starting with 0
+    if (digits.length === 11 && digits.startsWith('0')) {
+        return '91' + digits.substring(1);
+    }
+    // Already has 91 country code (12 digits)
+    if (digits.length === 12 && digits.startsWith('91')) {
+        return digits;
+    }
+    // International numbers (11 to 15 digits)
+    if (digits.length >= 10 && digits.length <= 15) {
+        return digits;
+    }
+    return digits;
+}
+
+function sendWelcomeWhatsApp(cust) {
+    if (!cust || !cust.phone) {
+        showToast('Customer does not have a phone number.', 'error');
+        return;
+    }
+    const formattedPhone = formatPhoneForWhatsApp(cust.phone);
+    if (!formattedPhone) {
+        showToast('Customer phone number is invalid for WhatsApp.', 'error');
+        return;
+    }
+
+    const messageText = WHATSAPP_WELCOME_TEMPLATE;
+    const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(messageText)}`;
+    window.open(url, '_blank');
+    showToast(`Opening WhatsApp welcome message for ${cust.name || 'customer'}... 💬`, 'success');
+}
+
+function sendWelcomeWhatsAppByDocId(docId) {
+    const cust = allCustomers.find(c => c.id === docId);
+    if (!cust) return;
+    sendWelcomeWhatsApp(cust);
+}
+
+// --- Welcome Email via EmailJS ---
+async function sendWelcomeEmail(cust, isAuto = false) {
+    if (!cust.email || !cust.email.trim()) {
+        if (!isAuto) showToast('Customer does not have an email address.', 'error');
+        return;
+    }
+
+    const customerEmail = cust.email.trim();
+    const customerName = cust.name ? cust.name.trim() : 'Valued Customer';
+
+    const templateParams = {
+        email: customerEmail,
+        to_email: customerEmail,
+        user_email: customerEmail,
+        recipient: customerEmail,
+        to_name: customerName,
+        name: customerName,
+        from_name: "LASA CHOCOLATES",
+        reply_to: SENDER_EMAIL,
+        subject: "Welcome to LASA CHOCOLATES! 🍫 Handcrafted Delights Await You",
+        message: `Dear ${customerName},\n\nWelcome to the LASA CHOCOLATES family!\n\nWe are delighted to have you with us. At LASA CHOCOLATES, every piece is handcrafted with love and the finest ingredients:\n\n✨ Premium Dark, Milk & White Chocolates\n✨ Dubai Style Kunafa Pistachio Chocolates\n✨ Gourmet Dryfruit Mixes & Brownies\n✨ Customized Gift Hampers for Every Celebration\n\nFor custom orders or special inquiries, feel free to reply to this email or reach us anytime at ${SENDER_EMAIL}.\n\nWarmest regards,\nLASA CHOCOLATES Team\n📸 Follow us on Instagram: https://www.instagram.com/lasa.chocolates`,
+        phone: cust.phone || '',
+        address: cust.address || '',
+    };
+
+    try {
+        if (window.emailjs) {
+            await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY);
+            showToast(`Welcome email sent to ${cust.name} (${cust.email}) from ${SENDER_EMAIL}! 🍫`, 'success');
+        } else {
+            throw new Error("EmailJS SDK not loaded");
+        }
+    } catch (err) {
+        console.error("EmailJS welcome email error:", err);
+        const errMsg = err?.text || err?.message || 'Check EmailJS template setup';
+        showToast(`EmailJS sending notice: ${errMsg}`, 'error');
+    }
+}
+
+function triggerManualWelcomeEmail(docId) {
+    const cust = allCustomers.find(c => c.id === docId);
+    if (!cust) return;
+    showToast(`Sending welcome email to ${cust.name}...`, 'info');
+    sendWelcomeEmail(cust, false);
+}
+
+function openDeleteCustomerModal(docId) {
+    deleteCustomerId = docId;
+    DOM.deleteCustomerModal.classList.add('show');
+}
+
+function closeDeleteCustomerModal() {
+    DOM.deleteCustomerModal.classList.remove('show');
+    deleteCustomerId = null;
+}
+
+DOM.deleteCustCancelBtn?.addEventListener('click', closeDeleteCustomerModal);
+DOM.deleteCustConfirmBtn?.addEventListener('click', async () => {
+    if (!deleteCustomerId) return;
+    try {
+        if (!deleteCustomerId.startsWith('order_cust_')) {
+            await customersRef.doc(deleteCustomerId).delete();
+        }
+        allCustomers = allCustomers.filter(c => c.id !== deleteCustomerId);
+        showToast('Customer removed from registry.', 'success');
+        renderCustomersTable();
+        updateCustomerKpis();
+        closeDeleteCustomerModal();
+    } catch (err) {
+        console.error("Delete customer error:", err);
+        showToast('Error deleting customer.', 'error');
+    }
+});
+
+DOM.customerSearchInput?.addEventListener('input', renderCustomersTable);
+DOM.clearCustomerFiltersBtn?.addEventListener('click', () => {
+    if (DOM.customerSearchInput) DOM.customerSearchInput.value = '';
+    renderCustomersTable();
+});
+
+function quickWhatsAppCustomer(waPhone, custName) {
+    const text = `Hello ${custName || 'there'}! Greetings from LASA CHOCOLATES 🍫. How can we make your day sweeter today?`;
+    window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+// ============================================================
+// BLOG MODULE
+// ============================================================
+function getFilteredBlogs() {
+    const q = (DOM.blogSearchInput?.value || '').toLowerCase().trim();
+    const tag = (DOM.blogTagFilter?.value || '').trim();
+
+    return allBlogs.filter(b => {
+        const matchesQuery = !q || (b.title || '').toLowerCase().includes(q) || (b.content || '').toLowerCase().includes(q) || (b.tag || '').toLowerCase().includes(q);
+        const matchesTag = !tag || b.tag === tag;
+        return matchesQuery && matchesTag;
+    });
+}
+
+function renderBlogCards() {
+    const filtered = getFilteredBlogs();
+
+    if (!DOM.blogGrid) return;
+
+    if (filtered.length === 0) {
+        DOM.blogGrid.innerHTML = '';
+        if (DOM.blogEmptyState) DOM.blogEmptyState.style.display = 'block';
+        return;
+    }
+
+    if (DOM.blogEmptyState) DOM.blogEmptyState.style.display = 'none';
+
+    DOM.blogGrid.innerHTML = filtered.map(b => {
+        const coverImg = b.coverImage || (b.images && b.images.length > 0 ? b.images[0] : null);
+        const dateStr = b.createdAt ? formatDate(b.createdAt) : 'Recently';
+        const tag = b.tag || 'Story';
+        const extraImages = (b.images && b.images.length > 1) ? b.images.slice(1, 4) : [];
+
+        return `
+            <div class="blog-card">
+                <div class="blog-card-cover">
+                    ${coverImg ? `<img src="${escapeHtml(coverImg)}" alt="${escapeHtml(b.title)}">` : `
+                        <div class="blog-cover-placeholder">
+                            <i class="fas fa-cookie-bite"></i>
+                            <span>LASA CHOCOLATES</span>
+                        </div>
+                    `}
+                    <span class="blog-card-tag">${escapeHtml(tag)}</span>
+                </div>
+                <div class="blog-card-body">
+                    <div class="blog-card-date">
+                        <i class="fas fa-calendar-alt"></i> ${dateStr}
+                    </div>
+                    <h3 class="blog-card-title">${escapeHtml(b.title || 'Untitled Post')}</h3>
+                    <p class="blog-card-excerpt">${escapeHtml(b.content || '')}</p>
+                    ${extraImages.length > 0 ? `
+                        <div class="blog-card-thumbs">
+                            ${extraImages.map(img => `<img src="${escapeHtml(img)}" alt="preview">`).join('')}
+                            ${(b.images.length > 4) ? `<span style="font-size:0.75rem;color:var(--text-muted);align-self:center;">+${b.images.length - 4} more</span>` : ''}
+                        </div>
+                    ` : ''}
+                    <div class="blog-card-footer">
+                        <button type="button" class="btn-share-blog" onclick="openShareBlogModal('${b.id}')">
+                            <i class="fas fa-share-alt"></i> Share with Customers
+                        </button>
+                        <div class="blog-actions-right">
+                            <button type="button" class="btn-icon btn-edit" onclick="openEditBlogModal('${b.id}')" title="Edit Post">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" class="btn-icon btn-delete" onclick="openDeleteBlogModal('${b.id}')" title="Delete Post">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// --- Image Upload Helpers ---
+function renderUploadedImagePreviews() {
+    if (!DOM.blogImagePreviews) return;
+    DOM.blogImagePreviews.innerHTML = blogUploadedImages.map((img, idx) => `
+        <div class="image-preview-item">
+            <img src="${img}" alt="upload ${idx}">
+            <button type="button" class="remove-img-btn" onclick="removeBlogImage(${idx})" title="Remove">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function removeBlogImage(index) {
+    blogUploadedImages.splice(index, 1);
+    renderUploadedImagePreviews();
+}
+
+function processImageFiles(files) {
+    Array.from(files).forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const MAX_SIZE = 1000;
+                if (width > MAX_SIZE || height > MAX_SIZE) {
+                    if (width > height) {
+                        height = Math.round((height * MAX_SIZE) / width);
+                        width = MAX_SIZE;
+                    } else {
+                        width = Math.round((width * MAX_SIZE) / height);
+                        height = MAX_SIZE;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressedB64 = canvas.toDataURL('image/jpeg', 0.82);
+                blogUploadedImages.push(compressedB64);
+                renderUploadedImagePreviews();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// Drag and drop events for blog images
+if (DOM.blogDropzone) {
+    DOM.blogDropzone.addEventListener('click', () => DOM.blogImageFiles?.click());
+    DOM.blogDropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        DOM.blogDropzone.classList.add('dragover');
+    });
+    DOM.blogDropzone.addEventListener('dragleave', () => {
+        DOM.blogDropzone.classList.remove('dragover');
+    });
+    DOM.blogDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        DOM.blogDropzone.classList.remove('dragover');
+        if (e.dataTransfer.files) processImageFiles(e.dataTransfer.files);
+    });
+}
+DOM.blogImageFiles?.addEventListener('change', (e) => {
+    if (e.target.files) processImageFiles(e.target.files);
+});
+
+function openCreateBlogModal() {
+    DOM.editBlogId.value = '';
+    DOM.blogModalTitle.innerHTML = '<i class="fas fa-feather-alt"></i> Create Blog Post';
+    DOM.blogTitle.value = '';
+    DOM.blogTag.value = 'New Flavour';
+    DOM.blogImageUrl.value = '';
+    DOM.blogContent.value = '';
+    blogUploadedImages = [];
+    renderUploadedImagePreviews();
+    DOM.blogModal.classList.add('show');
+    DOM.blogTitle.focus();
+}
+
+function openEditBlogModal(docId) {
+    const blog = allBlogs.find(b => b.id === docId);
+    if (!blog) return;
+    DOM.editBlogId.value = docId;
+    DOM.blogModalTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Blog Post';
+    DOM.blogTitle.value = blog.title || '';
+    DOM.blogTag.value = blog.tag || 'New Flavour';
+    DOM.blogImageUrl.value = blog.coverImage && blog.coverImage.startsWith('http') ? blog.coverImage : '';
+    DOM.blogContent.value = blog.content || '';
+    blogUploadedImages = Array.isArray(blog.images) ? [...blog.images] : [];
+    renderUploadedImagePreviews();
+    DOM.blogModal.classList.add('show');
+    DOM.blogTitle.focus();
+}
+
+function closeBlogModal() {
+    DOM.blogModal.classList.remove('show');
+}
+
+DOM.createBlogBtn?.addEventListener('click', openCreateBlogModal);
+DOM.blogModalClose?.addEventListener('click', closeBlogModal);
+DOM.blogCancelBtn?.addEventListener('click', closeBlogModal);
+
+DOM.blogForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const docId = DOM.editBlogId.value;
+    const explicitUrl = DOM.blogImageUrl.value.trim();
+    let cover = explicitUrl || (blogUploadedImages.length > 0 ? blogUploadedImages[0] : '');
+
+    const blogData = {
+        title: DOM.blogTitle.value.trim(),
+        tag: DOM.blogTag.value,
+        content: DOM.blogContent.value.trim(),
+        coverImage: cover,
+        images: blogUploadedImages,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+
+    try {
+        if (docId) {
+            await blogsRef.doc(docId).update(blogData);
+            showToast('Blog post updated successfully!', 'success');
+        } else {
+            blogData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            await blogsRef.add(blogData);
+            showToast('Blog post published! 🍫 Ready to broadcast.', 'success');
+        }
+        closeBlogModal();
+    } catch (err) {
+        console.error("Save blog error:", err);
+        showToast('Error saving blog post.', 'error');
+    }
+});
+
+function openDeleteBlogModal(docId) {
+    deleteBlogId = docId;
+    DOM.deleteBlogModal.classList.add('show');
+}
+
+function closeDeleteBlogModal() {
+    DOM.deleteBlogModal.classList.remove('show');
+    deleteBlogId = null;
+}
+
+DOM.deleteBlogCancelBtn?.addEventListener('click', closeDeleteBlogModal);
+DOM.deleteBlogConfirmBtn?.addEventListener('click', async () => {
+    if (!deleteBlogId) return;
+    try {
+        await blogsRef.doc(deleteBlogId).delete();
+        showToast('Blog post deleted.', 'success');
+        closeDeleteBlogModal();
+    } catch (err) {
+        console.error("Delete blog error:", err);
+        showToast('Error deleting blog post.', 'error');
+    }
+});
+
+DOM.blogSearchInput?.addEventListener('input', renderBlogCards);
+DOM.blogTagFilter?.addEventListener('change', renderBlogCards);
+DOM.clearBlogFiltersBtn?.addEventListener('click', () => {
+    if (DOM.blogSearchInput) DOM.blogSearchInput.value = '';
+    if (DOM.blogTagFilter) DOM.blogTagFilter.value = '';
+    renderBlogCards();
+});
+
+// ============================================================
+// BLOG SHARE SYSTEM (WhatsApp & EmailJS)
+// ============================================================
+function openShareBlogModal(blogId) {
+    const blog = allBlogs.find(b => b.id === blogId);
+    if (!blog) return;
+
+    DOM.currentShareBlogId.value = blogId;
+
+    // Render Preview
+    const cover = blog.coverImage || (blog.images && blog.images.length > 0 ? blog.images[0] : null);
+    DOM.shareBlogPreview.innerHTML = `
+        ${cover ? `<img src="${escapeHtml(cover)}" class="share-preview-thumb" alt="cover">` : `
+            <div class="share-preview-thumb blog-cover-placeholder" style="font-size:1.4rem;">
+                <i class="fas fa-cookie-bite"></i>
+            </div>
+        `}
+        <div class="share-preview-info">
+            <h4 class="share-preview-title">${escapeHtml(blog.title || 'Untitled Blog')}</h4>
+            <p class="share-preview-desc">${escapeHtml(blog.content || '')}</p>
+        </div>
+    `;
+
+    renderShareCustomerChecklist();
+    DOM.blogShareModal.classList.add('show');
+}
+
+function closeShareModal() {
+    DOM.blogShareModal.classList.remove('show');
+}
+
+DOM.shareModalClose?.addEventListener('click', closeShareModal);
+
+function renderShareCustomerChecklist(filterQ = '') {
+    if (!DOM.shareCustomersList) return;
+    const q = filterQ.toLowerCase().trim();
+
+    const filtered = allCustomers.filter(c => {
+        if (!q) return true;
+        return (c.name || '').toLowerCase().includes(q) ||
+               (c.phone || '').toLowerCase().includes(q) ||
+               (c.email || '').toLowerCase().includes(q);
+    });
+
+    if (filtered.length === 0) {
+        DOM.shareCustomersList.innerHTML = `<p style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:1rem;">No registered customers found.</p>`;
+        updateSelectedCustCount();
+        return;
+    }
+
+    DOM.shareCustomersList.innerHTML = filtered.map(c => `
+        <label class="share-cust-row custom-checkbox-label">
+            <input type="checkbox" class="share-cust-cb" value="${c.id}" data-phone="${escapeHtml(c.phone || '')}" data-email="${escapeHtml(c.email || '')}" data-name="${escapeHtml(c.name || '')}" checked>
+            <span class="custom-checkbox-box"></span>
+            <div class="share-cust-info" style="flex:1;margin-left:0.4rem;">
+                <span class="share-cust-name">${escapeHtml(c.name || 'Unnamed')}</span>
+                <span class="share-cust-meta">
+                    ${c.phone ? `<span><i class="fas fa-phone"></i> ${escapeHtml(c.phone)}</span>` : ''}
+                    ${c.email ? `<span><i class="fas fa-envelope"></i> ${escapeHtml(c.email)}</span>` : ''}
+                </span>
+            </div>
+        </label>
+    `).join('');
+
+    if (DOM.selectAllShareCust) DOM.selectAllShareCust.checked = true;
+    updateSelectedCustCount();
+
+    // Bind checkbox change events
+    DOM.shareCustomersList.querySelectorAll('.share-cust-cb').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCustCount);
+    });
+}
+
+function updateSelectedCustCount() {
+    const checked = DOM.shareCustomersList?.querySelectorAll('.share-cust-cb:checked') || [];
+    if (DOM.selectedCustCount) DOM.selectedCustCount.textContent = checked.length;
+}
+
+DOM.selectAllShareCust?.addEventListener('change', (e) => {
+    const cbs = DOM.shareCustomersList?.querySelectorAll('.share-cust-cb') || [];
+    cbs.forEach(cb => { cb.checked = e.target.checked; });
+    updateSelectedCustCount();
+});
+
+DOM.shareCustomerSearch?.addEventListener('input', (e) => {
+    renderShareCustomerChecklist(e.target.value);
+});
+
+// --- WhatsApp Sharing Handler ---
+DOM.btnShareWhatsApp?.addEventListener('click', () => {
+    const blogId = DOM.currentShareBlogId.value;
+    const blog = allBlogs.find(b => b.id === blogId);
+    if (!blog) return;
+
+    const checked = Array.from(DOM.shareCustomersList?.querySelectorAll('.share-cust-cb:checked') || []);
+    const withPhone = checked.filter(cb => cb.dataset.phone && cb.dataset.phone.trim().length > 0);
+
+    if (withPhone.length === 0) {
+        showToast('Please select at least one customer with a phone number.', 'error');
+        return;
+    }
+
+    const messageText = `🍫 *LASA CHOCOLATES* 🍫\n\n✨ *${blog.title}* ✨\n${blog.tag ? `🏷️ [${blog.tag}]\n\n` : '\n'}${blog.content}\n\n🛒 *Order Now / Inquiries:* Reply to this message or email us at ${SENDER_EMAIL}\n📸 Instagram: https://www.instagram.com/lasa.chocolates`;
+
+    if (withPhone.length === 1) {
+        const cleanPhone = withPhone[0].dataset.phone.replace(/\D/g, '');
+        const waPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+        window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(messageText)}`, '_blank');
+        showToast(`Opening WhatsApp for ${withPhone[0].dataset.name}...`, 'success');
+    } else {
+        // Multi-customer: open for the first customer and prompt for subsequent
+        const first = withPhone[0];
+        const cleanPhone = first.dataset.phone.replace(/\D/g, '');
+        const waPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+        window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(messageText)}`, '_blank');
+        showToast(`Opening WhatsApp for 1 of ${withPhone.length} customers. You can click direct WhatsApp buttons in customer registry for others!`, 'info');
+    }
+});
+
+// --- EmailJS Sharing Handler ---
+DOM.btnShareEmailJS?.addEventListener('click', async () => {
+    const blogId = DOM.currentShareBlogId.value;
+    const blog = allBlogs.find(b => b.id === blogId);
+    if (!blog) return;
+
+    const checked = Array.from(DOM.shareCustomersList?.querySelectorAll('.share-cust-cb:checked') || []);
+    const withEmail = checked.filter(cb => cb.dataset.email && cb.dataset.email.trim().length > 0);
+
+    if (withEmail.length === 0) {
+        showToast('Please select at least one customer with a valid email address.', 'error');
+        return;
+    }
+
+    if (!window.emailjs) {
+        showToast('EmailJS SDK is not loaded. Please check your internet connection.', 'error');
+        return;
+    }
+
+    DOM.emailSendingProgress.style.display = 'flex';
+    DOM.btnShareEmailJS.disabled = true;
+    let sentCount = 0;
+    let failCount = 0;
+    let lastErrorMsg = '';
+
+    const cover = blog.coverImage || (blog.images && blog.images.length > 0 ? blog.images[0] : '');
+
+    for (let i = 0; i < withEmail.length; i++) {
+        const cust = withEmail[i];
+        DOM.emailProgressText.textContent = `Sending to ${cust.dataset.name} (${i + 1}/${withEmail.length})...`;
+
+        const recipientEmail = (cust.dataset.email || '').trim();
+        const recipientName = (cust.dataset.name || '').trim() || 'Customer';
+
+        const templateParams = {
+            email: recipientEmail,
+            to_email: recipientEmail,
+            user_email: recipientEmail,
+            recipient: recipientEmail,
+            to_name: recipientName,
+            name: recipientName,
+            from_name: "LASA CHOCOLATES",
+            reply_to: SENDER_EMAIL,
+            blog_title: blog.title,
+            blog_tag: blog.tag || 'Special Story',
+            blog_content: blog.content,
+            blog_image: cover,
+            subject: `🍫 ${blog.title} – LASA CHOCOLATES`,
+            message: `${blog.title}\n\n${blog.content}\n\nOrder online or reply to: ${SENDER_EMAIL}`
+        };
+
+        try {
+            await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY);
+            sentCount++;
+        } catch (err) {
+            console.error(`EmailJS send failed for ${cust.dataset.email}:`, err);
+            lastErrorMsg = err?.text || err?.message || 'Error';
+            failCount++;
+        }
+    }
+
+    DOM.emailSendingProgress.style.display = 'none';
+    DOM.btnShareEmailJS.disabled = false;
+
+    if (sentCount > 0 && failCount === 0) {
+        showToast(`Successfully sent blog email to all ${sentCount} customer(s) from ${SENDER_EMAIL}! 🍫`, 'success');
+    } else if (sentCount > 0 && failCount > 0) {
+        showToast(`Sent to ${sentCount} customer(s). ${failCount} failed (${lastErrorMsg}).`, 'info');
+    } else if (failCount > 0) {
+        showToast(`EmailJS sending error: ${lastErrorMsg}`, 'error');
+    }
+});
+
+// ============================================================
+// UPI MODAL HANDLERS
+// ============================================================
+function openUpiModal() {
+    if (DOM.upiModalQrImg) DOM.upiModalQrImg.src = UPI_QR_URL;
+    if (DOM.upiModal) DOM.upiModal.classList.add('show');
+}
+
+function closeUpiModal() {
+    if (DOM.upiModal) DOM.upiModal.classList.remove('show');
+}
+
+DOM.contactUpi?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openUpiModal();
+});
+
+DOM.upiModalClose?.addEventListener('click', closeUpiModal);
+DOM.upiModal?.addEventListener('click', (e) => { if (e.target === DOM.upiModal) closeUpiModal(); });
+
+DOM.copyUpiBtn?.addEventListener('click', () => {
+    navigator.clipboard.writeText("9035653901@airtel").then(() => {
+        showToast('UPI ID (9035653901@airtel) copied to clipboard! 📋', 'success');
+    }).catch(() => {
+        showToast('UPI ID: 9035653901@airtel', 'info');
+    });
+});
 
 // ============================================================
 // MODAL CLOSE EVENTS
 // ============================================================
-DOM.orderModal.addEventListener('click', (e) => { if(e.target===DOM.orderModal) closeModal(); });
-DOM.deleteModal.addEventListener('click', (e) => { if(e.target===DOM.deleteModal){ DOM.deleteModal.classList.remove('show'); deleteDocId=null; } });
-document.addEventListener('keydown', (e) => { if(e.key==='Escape'){ closeModal(); DOM.deleteModal.classList.remove('show'); deleteDocId=null; } });
+DOM.orderModal.addEventListener('click', (e) => { if (e.target === DOM.orderModal) closeModal(); });
+DOM.deleteModal.addEventListener('click', (e) => { if (e.target === DOM.deleteModal) { DOM.deleteModal.classList.remove('show'); deleteDocId = null; } });
+DOM.customerModal?.addEventListener('click', (e) => { if (e.target === DOM.customerModal) closeCustomerModal(); });
+DOM.deleteCustomerModal?.addEventListener('click', (e) => { if (e.target === DOM.deleteCustomerModal) closeDeleteCustomerModal(); });
+DOM.blogModal?.addEventListener('click', (e) => { if (e.target === DOM.blogModal) closeBlogModal(); });
+DOM.deleteBlogModal?.addEventListener('click', (e) => { if (e.target === DOM.deleteBlogModal) closeDeleteBlogModal(); });
+DOM.blogShareModal?.addEventListener('click', (e) => { if (e.target === DOM.blogShareModal) closeShareModal(); });
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeModal();
+        DOM.deleteModal.classList.remove('show');
+        deleteDocId = null;
+        closeCustomerModal();
+        closeDeleteCustomerModal();
+        closeBlogModal();
+        closeDeleteBlogModal();
+        closeShareModal();
+        closeUpiModal();
+    }
+});
