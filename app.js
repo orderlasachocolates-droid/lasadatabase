@@ -26,7 +26,7 @@ const customersRef = db.collection("customers");
 const blogsRef = db.collection("blogs");
 
 // --- Brand Assets ---
-const BRAND_LOGO_URL = "https://res.cloudinary.com/dtz0urit6/image/upload/q_auto:best,f_png/cloudinary-tools-uploads/l9vifhxn2hyfmwrttt8o";
+const BRAND_LOGO_URL = "https://ibb.co/LDyP8TFW";
 const UPI_QR_URL = "https://res.cloudinary.com/dtz0urit6/image/upload/q_auto:best,f_png/cloudinary-tools-uploads/ipfgx8i5wsilyy9prwc0";
 
 // --- EmailJS Configuration ---
